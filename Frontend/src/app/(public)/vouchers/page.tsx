@@ -1,35 +1,33 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import VoucherList from "@/components/features/voucher/VoucherList"
-import { voucherService } from "@/services/voucherService"
 
-export interface Voucher {
-  id: number
-  discountRate: number
-  validFrom: string
-  validTo: string
-  minAmountOrder: number
-  requirePoint: number
-}
+
+// export interface Voucher {
+//   id: number
+//   discountRate: number
+//   validFrom: string
+//   validTo: string
+//   minAmountOrder: number
+//   requirePoint: number
+// }
 
 export default function MyVouchersPage() {
-  const [vouchers, setVouchers] = useState<Voucher[]>([])
-  const [loading, setLoading] = useState(true)
+  // const [vouchers, setVouchers] = useState<Voucher[]>([])
+  // const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const fetchVouchers = async () => {
-      try {
-        const data = await voucherService.getAll({ size: 1, page: 10 });
-        setVouchers(data)
-      } catch (err) {
-        console.error("Error fetching vouchers:", err)
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchVouchers()
-  }, [])
+  // useEffect(() => {
+  //   const fetchVouchers = async () => {
+  //     try {
+  //       const data = await voucherService.getAll({ size: 1, page: 10 });
+  //       setVouchers(data)
+  //     } catch (err) {
+  //       console.error("Error fetching vouchers:", err)
+  //     } finally {
+  //       setLoading(false)
+  //     }
+  //   }
+  //   fetchVouchers()
+  // }, [])
 
   return (
     <div className="min-h-screen bg-[#fdf6ec] py-10 px-6">
@@ -38,7 +36,7 @@ export default function MyVouchersPage() {
           🎫 My Vouchers
         </h1>
 
-        <VoucherList vouchers={vouchers} loading={loading} />
+        {/* <VoucherList vouchers={vouchers} loading={loading} /> */}
       </div>
     </div>
   )
