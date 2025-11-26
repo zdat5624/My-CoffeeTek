@@ -8,12 +8,14 @@ import { authService } from '@/services';
 import { STORAGE_KEYS } from '@/lib/constant/storageKey.constant';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
+import { Loader } from 'lucide-react';
+import { Spinner } from '../ui/spinner';
 
 export function GoogleLoginComponent() {
     const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID;
     const router = useRouter();
     const { setUser, setIsAuthenticated } = useAuthContext();
-    const [mounted, setMounted] = useState(false);
+    const [googleReady, setGoogleReady] = useState(false);
 
     const handleSuccess = async (credentialResponse: CredentialResponse) => {
         if (!credentialResponse.credential) {
@@ -58,11 +60,14 @@ export function GoogleLoginComponent() {
 
 
 
+
+
     useEffect(() => {
-        setMounted(true);
+        const handle = setTimeout(() => setGoogleReady(true), 200); // chờ cho SDK load
+        return () => clearTimeout(handle);
     }, []);
 
-    if (!mounted) return null;
+    if (!googleReady) return <Spinner className='size-5 mx-auto min-h-[50px]' />;
     return (
         <div style={{
             display: 'flex',
