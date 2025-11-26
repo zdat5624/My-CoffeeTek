@@ -64,13 +64,22 @@ export function GoogleLoginComponent() {
 
     if (!mounted) return null;
     return (
-        <GoogleOAuthProvider clientId={CLIENT_ID}>
-            <GoogleLogin
-                onSuccess={handleSuccess}
-                onError={handleError}
-                text="signin_with"
-                locale="en-US"
-            />
-        </GoogleOAuthProvider>
+        <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            minHeight: '50px',
+        }}>
+            <GoogleOAuthProvider clientId={CLIENT_ID}>
+                <GoogleLogin
+                    onSuccess={handleSuccess}
+                    onError={handleError}
+                    text="signin_with"
+                    locale="en-US"
+                    useOneTap={false}
+                    auto_select={false}
+                />
+            </GoogleOAuthProvider>
+        </div>
     );
 }
