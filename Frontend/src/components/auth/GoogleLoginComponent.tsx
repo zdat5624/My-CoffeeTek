@@ -63,7 +63,7 @@ export function GoogleLoginComponent() {
 
 
     useEffect(() => {
-        const handle = setTimeout(() => setGoogleReady(true), 400); // chờ cho SDK load
+        const handle = setTimeout(() => setGoogleReady(true), 250); // chờ cho SDK load
         return () => clearTimeout(handle);
     }, []);
 
