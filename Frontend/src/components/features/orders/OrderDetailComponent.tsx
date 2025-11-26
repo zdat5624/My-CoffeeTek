@@ -241,21 +241,21 @@ export function OrderDetailComponent({
                         0
                     );;
                     const descriptionParts: string[] = [];
+
                     if (toppings.length > 0) {
-                        const toppingSummary = toppings
-                            .map(top => `${top.topping?.name} (x${top.quantity} per unit)`)
-                            .join(", ");
-                        descriptionParts.push(toppingSummary);
-                    }
-                    if (options.length > 0)
                         descriptionParts.push(
-                            options
-                                .map(
-                                    (opt) =>
-                                        `${opt.option_group?.name || "Option"}: ${opt.name}`
-                                )
-                                .join(", ")
+                            `Topping(s): ` + toppings.map(t => `${t.topping?.name} (x${t.quantity})`).join(" | ")
                         );
+                    }
+
+                    if (options.length > 0) {
+                        descriptionParts.push(
+                            "Options: " +
+                            options
+                                .map(o => `${o.option_group?.name} (${o.name})`)
+                                .join(" | ")
+                        );
+                    }
 
                     return (
                         <Panel
@@ -292,8 +292,10 @@ export function OrderDetailComponent({
                                             flex: "1 1 100%",
                                         }}
                                     >
-                                        <Text type="secondary" style={{ whiteSpace: "normal", lineHeight: 1.4 }}>
-                                            {descriptionParts.join(" | ")}
+                                        <Text type="secondary" style={{ whiteSpace: "normal", lineHeight: 1.5 }}>
+                                            {descriptionParts.map((p, i) => (
+                                                <div key={i} style={{ marginBottom: 2 }}>{p}</div>
+                                            ))}
                                         </Text>
                                     </Flex>
 
