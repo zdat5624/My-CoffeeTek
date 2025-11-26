@@ -164,7 +164,7 @@ export default function LoginForm() {
           {loading ? "Logging in..." : "Login"}
         </FormButton>
 
-        <div>
+        <div className="mx-auto w-full">
           <GoogleLoginComponent />
         </div>
       </form>

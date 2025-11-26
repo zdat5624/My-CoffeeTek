@@ -7,11 +7,13 @@ import { useRouter } from 'next/navigation';
 import { authService } from '@/services';
 import { STORAGE_KEYS } from '@/lib/constant/storageKey.constant';
 import { useAuthContext } from '@/contexts/AuthContext';
+import { useEffect, useState } from 'react';
 
 export function GoogleLoginComponent() {
     const CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID;
     const router = useRouter();
     const { setUser, setIsAuthenticated } = useAuthContext();
+    const [mounted, setMounted] = useState(false);
 
     const handleSuccess = async (credentialResponse: CredentialResponse) => {
         if (!credentialResponse.credential) {
@@ -54,6 +56,13 @@ export function GoogleLoginComponent() {
 
     if (!CLIENT_ID) throw new Error("Missing GOOGLE_WEB_CLIENT_ID");
 
+
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) return null;
     return (
         <GoogleOAuthProvider clientId={CLIENT_ID}>
             <GoogleLogin
