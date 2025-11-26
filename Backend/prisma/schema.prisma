@@ -35,6 +35,8 @@ model User {
   Voucher             Voucher[]
   watseLog            watseLog[]
   Notifications Notification[]
+
+  cart          Cart?
   @@map("users")
 }
 
@@ -75,7 +77,7 @@ model OptionValue {
   option_group_id    Int
   ProductOptionValue ProductOptionValue[]
   orderDetails       OrderDetail[]
-
+  cartItems      CartItem[]
   @@map("option_values")
 }
 
@@ -86,7 +88,7 @@ model Size {
   OrderDetail    OrderDetail[]
   ProductSize    ProductSize[]
   MaterialRecipe MaterialRecipe[]
-
+  cartItems      CartItem[]
   @@map("sizes")
 }
 
@@ -131,6 +133,9 @@ model Product {
 
   // "I am a topping and I am part of this order detail"
   ToppingOrderDetail ToppingOrderDetail[] @relation("ToppingOrder")
+
+  cartItems          CartItem[]           // Sản phẩm nằm trong giỏ hàng nào
+  cartToppings       CartItemTopping[]    @relation("ToppingCart") // Sản phẩm này được dùng làm topping trong giỏ nào
 
   @@map("products")
 }
@@ -263,7 +268,6 @@ model PaymentDetail {
   payment_time      DateTime      @default(now())
   status            String        @default("completed") // completed, failed, pending
   Order             Order?        @relation("OrderPaymentDetail")
-
   @@map("payment_details")
 }
 
@@ -458,4 +462,56 @@ model Notification {
   createdAt    DateTime         @default(now())
 
   @@map("notifications")
+}
+
+
+// --- SHOPPING CART MODELS ---
+
+model Cart {
+  id        Int        @id @default(autoincrement())
+  userId    Int        @unique // Mỗi user chỉ có 1 giỏ hàng active
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        Int      @id @default(autoincrement())
+  quantity  Int      @default(1)
+  
+  cartId    Int
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  sizeId    Int?
+  size      Size?    @relation(fields: [sizeId], references: [id])
+
+  // Quan hệ 1-n với topping (giống ToppingOrderDetail)
+  cartItemToppings CartItemTopping[]
+
+  // Quan hệ n-n với OptionValue (Đá, Đường...)
+  optionSelections OptionValue[] 
+
+  createdAt DateTime @default(now())
+
+  @@map("cart_items")
+}
+
+model CartItemTopping {
+  id          Int      @id @default(autoincrement())
+  quantity    Int      @default(1) // Số lượng topping (ví dụ: 2 phần trân châu)
+
+  cartItemId  Int
+  cartItem    CartItem @relation(fields: [cartItemId], references: [id], onDelete: Cascade)
+
+  toppingId   Int
+  topping     Product  @relation("ToppingCart", fields: [toppingId], references: [id], onDelete: Cascade)
+
+  @@map("cart_item_toppings")
 }

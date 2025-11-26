@@ -30,6 +30,7 @@ import { InvoiceService } from 'src/invoice/invoice.service';
 import { B2Service } from 'src/storage-file/b2.service';
 import { InventoryService } from 'src/inventory/inventory.service';
 import { EventsGateway } from 'src/events/events.gateway';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class OrderService {
@@ -60,238 +61,393 @@ export class OrderService {
   }
 
 
+  // async create(createOrderDto: CreateOrderDto) {
+  //   const allToppingIds = createOrderDto.order_details.flatMap(
+  //     (i) => i.toppingItems?.map((t) => parseInt(t.toppingId)) || [],
+  //   );
+  //   const allToppings = await this.prisma.product.findMany({
+  //     where: { id: { in: allToppingIds } },
+  //   });
+
+  //   const toppings = await this.prisma.product.findMany({
+  //     where: {
+  //       id: { in: createOrderDto.order_details.flatMap(i => i.toppingItems?.map(t => parseInt(t.toppingId)) || []) }
+  //     }
+  //   })
+  //   const order_details = await Promise.all(
+
+  //     createOrderDto.order_details.map(async (item) => {
+  //       const now = new Date();
+  //       const productIdNum = parseInt(item.productId);
+
+  //       const product = await this.prisma.product.findUnique({
+  //         where: { id: productIdNum },
+  //         include: {
+  //           Recipe: { include: { MaterialRecipe: true } },
+  //           // Include `sizes` to get the ProductSize JOIN TABLE data
+  //           sizes: true,
+  //           toppings: true,
+  //         },
+  //       });
+
+  //       // 1. Find the specific Size object (to get its name/etc)
+  //       const size = item.sizeId
+  //         ? await this.prisma.size.findUnique({
+  //           where: { id: parseInt(item.sizeId) },
+  //         })
+  //         : null;
+
+  //       // 2. Find the specific ProductSize record to get the price
+  //       // product.sizes is the ProductSize[] array. We find the entry that links to the size.id
+  //       const productSize = product?.sizes.find(
+  //         (ps) => ps.size_id === size?.id,
+  //       );
+
+  //       // Filter the globally fetched toppings for this specific order item (optional, but cleaner)
+  //       const itemToppings = item.toppingItems?.length
+  //         ? allToppings.filter((t) =>
+  //           item.toppingItems!.some((ti) => parseInt(ti.toppingId) === t.id),
+  //         )
+  //         : [];
+  //       // const productPromotion = await this.prisma.productPromotion.findFirst({
+  //       //   where: {
+  //       //     AND:[
+  //       //       {
+  //       //         productId: product?.id},
+  //       //       {
+
+  //       //       }
+  //       //       ]
+
+  //       //   }
+  //       // });
+  //       const promotionActive = await this.prisma.promotion.findFirst({
+  //         where: {
+  //           AND: [
+  //             {
+  //               is_active: true
+  //             },
+  //             {
+  //               start_date: {
+  //                 lt: now
+  //               },
+  //               end_date: {
+  //                 gte: now
+  //               }
+  //             }
+  //           ]
+  //         },
+  //         include: {
+  //           ProductPromotion: {
+  //             where: item?.sizeId
+  //               ? {
+  //                 productId: productIdNum,
+  //                 productSizeId: parseInt(item.sizeId),
+  //               }
+  //               : {
+  //                 productId: productIdNum,
+  //               },
+  //           }
+  //         }
+
+  //       })
+  //       const productPromotion = promotionActive?.ProductPromotion
+  //       const optionValue = item.optionId ?? []
+
+  //       return {
+  //         ...item,
+  //         product, // Full product object
+  //         toppings: itemToppings, // Toppings for this item
+  //         size, // Full size object
+  //         productSize, // The specific ProductSize record (contains the correct price)
+  //         productPromotion,
+  //         optionValue
+  //       };
+  //     }),
+  //   );
+
+  //   const toppingPrice = (itemDetail) => {
+  //     return (
+  //       itemDetail.toppingItems?.reduce((sum, t) => {
+  //         const topping = allToppings.find(
+  //           (tp) => tp.id === parseInt(t.toppingId),
+  //         );
+  //         return sum + (topping?.price ?? 0) * parseInt(t.quantity);
+  //       }, 0) || 0
+  //     );
+  //   };
+
+  //   let original_price = 0;
+  //   for (const item of order_details) {
+  //     // check if this product in promtion or not 
+  //     const productPromotion = item.productPromotion
+
+  //     // 1. Get Base/Unit Price
+  //     const defaultProductPrice = item.product?.price || 0;
+
+  //     // Use the price from the CORRECT ProductSize object, or fall back to the default product price
+  //     const unitPrice = productPromotion?.find(i => i.productId == parseInt(item.productId))?.new_price || item.productSize?.price || defaultProductPrice;
+
+  //     // 2. Get Quantity
+  //     const quantity = item.quantity ? parseInt(item.quantity.toString()) : 0;
+
+  //     // 3. Get Topping Total
+  //     const toppingTotal = toppingPrice(item) * quantity;
+
+  //     // Sum: (Unit Price * Quantity) + Topping Price
+  //     original_price += (unitPrice * quantity) + toppingTotal;
+  //   }
+
+  //   // Tính toán giá gốc và giá cuối cùng trước khi áp dụng voucher/ khuyến mãi khách hàng thân thiết
+  //   const final_price = original_price;
+  //   //create order
+
+  //   const newOrder = await this.prisma.$transaction(async (tx) => {
+
+  //     for (const item of order_details) {
+  //       // 1. KIỂM TRA TỒN TẠI (Lỗi bạn đang gặp)
+  //       if (!item.product) {
+  //         const productId = item.productId;
+  //         throw new BadRequestException(
+  //           `Product ${productId} not found in database.`,
+  //         );
+  //       }
+
+  //       // 2. KIỂM TRA CÁC ĐIỀU KIỆN NGHIỆP VỤ KHÁC
+  //       // Gộp tất cả các điều kiện logic vào một khối IF lớn
+  //       if (
+  //         // A. Sản phẩm không hoạt động
+  //         !item.product.isActive ||
+  //         // B. Sản phẩm không có Recipe (null/undefined)
+  //         !item.product.Recipe ||
+  //         // C. Sản phẩm có Recipe nhưng mảng rỗng (không có công thức nào)
+  //         item.product.Recipe.length === 0 ||
+  //         // D. TẤT CẢ các Recipe đều không có MaterialRecipe (công thức không đầy đủ)
+  //         item.product.Recipe.every(
+  //           (r: any) => !r.MaterialRecipe || r.MaterialRecipe.length === 0,
+  //         )
+  //       ) {
+  //         const productNameOrId = item.product.name ?? item.productId;
+  //         throw new BadRequestException(
+  //           `Product ${productNameOrId} is inactive, not found, or has an incomplete recipe.`,
+  //         );
+  //       }
+  //     }
+
+  //     return await tx.order.create({
+  //       data: {
+  //         customerPhone: createOrderDto.customerPhone,
+  //         original_price: original_price,
+  //         final_price: final_price,
+  //         note: createOrderDto.note,
+  //         staffId: parseInt(createOrderDto.staffId),
+  //         order_details: {
+  //           create: order_details.map((item) => ({
+  //             product_name: item.product?.name,
+  //             quantity: parseInt(item.quantity),
+  //             unit_price: item.productPromotion?.find(e => e.productId == parseInt(item.productId))?.new_price || item.productSize?.price || item.product?.price || 0,
+
+  //             product: {
+  //               connect: { id: parseInt(item.productId) },
+  //             },
+
+  //             size: item.sizeId
+  //               ? { connect: { id: parseInt(item.sizeId) } }
+  //               : undefined,
+
+  //             ToppingOrderDetail: item.toppingItems?.length
+  //               ? {
+  //                 create: item.toppingItems.map((t) => ({
+  //                   quantity: parseInt(t.quantity),
+  //                   unit_price:
+  //                     toppings.find((p) => p.id == parseInt(t.toppingId))
+  //                       ?.price ?? 0,
+  //                   topping: { connect: { id: parseInt(t.toppingId) } },
+  //                 })),
+  //               }
+  //               : undefined,
+  //             optionValue: item.optionValue.length > 0
+  //               ? {
+  //                 connect: item.optionValue
+  //                   .map(id => ({ id: parseInt(id) }))
+  //               }
+  //               : undefined,
+  //           })),
+  //         },
+  //       },
+  //       include: {
+  //         order_details: {
+  //           include: {
+  //             product: true,
+  //             size: true,
+  //             ToppingOrderDetail: {
+  //               include: {
+  //                 topping: true,
+  //               },
+  //             },
+  //           },
+  //         },
+  //       },
+  //     });
+
+  //   });
+
+  //   //  4. PHÁT SỰ KIỆN SAU KHI TRANSACTION THÀNH CÔNG
+
+  //   await this.broadcastNewOrder(newOrder);
+  //   await this.broadcastProcessOrderCount();
+  //   return newOrder;
+  // }
+
   async create(createOrderDto: CreateOrderDto) {
+    const now = new Date();
+
+    // 1. Gom nhóm ID để query 1 lần
+    const productIds = createOrderDto.order_details.map(i => parseInt(i.productId));
     const allToppingIds = createOrderDto.order_details.flatMap(
       (i) => i.toppingItems?.map((t) => parseInt(t.toppingId)) || [],
     );
-    const allToppings = await this.prisma.product.findMany({
-      where: { id: { in: allToppingIds } },
-    });
 
-    const toppings = await this.prisma.product.findMany({
-      where: {
-        id: { in: createOrderDto.order_details.flatMap(i => i.toppingItems?.map(t => parseInt(t.toppingId)) || []) }
-      }
-    })
-    const order_details = await Promise.all(
-
-      createOrderDto.order_details.map(async (item) => {
-        const now = new Date();
-        const productIdNum = parseInt(item.productId);
-
-        const product = await this.prisma.product.findUnique({
-          where: { id: productIdNum },
-          include: {
-            Recipe: { include: { MaterialRecipe: true } },
-            // Include `sizes` to get the ProductSize JOIN TABLE data
-            sizes: true,
-            toppings: true,
-          },
-        });
-
-        // 1. Find the specific Size object (to get its name/etc)
-        const size = item.sizeId
-          ? await this.prisma.size.findUnique({
-            where: { id: parseInt(item.sizeId) },
-          })
-          : null;
-
-        // 2. Find the specific ProductSize record to get the price
-        // product.sizes is the ProductSize[] array. We find the entry that links to the size.id
-        const productSize = product?.sizes.find(
-          (ps) => ps.size_id === size?.id,
-        );
-
-        // Filter the globally fetched toppings for this specific order item (optional, but cleaner)
-        const itemToppings = item.toppingItems?.length
-          ? allToppings.filter((t) =>
-            item.toppingItems!.some((ti) => parseInt(ti.toppingId) === t.id),
-          )
-          : [];
-        // const productPromotion = await this.prisma.productPromotion.findFirst({
-        //   where: {
-        //     AND:[
-        //       {
-        //         productId: product?.id},
-        //       {
-
-        //       }
-        //       ]
-
-        //   }
-        // });
-        const promotionActive = await this.prisma.promotion.findFirst({
-          where: {
-            AND: [
-              {
-                is_active: true
-              },
-              {
-                start_date: {
-                  lt: now
-                },
-                end_date: {
-                  gte: now
-                }
-              }
-            ]
-          },
-          include: {
-            ProductPromotion: {
-              where: item?.sizeId
-                ? {
-                  productId: productIdNum,
-                  productSizeId: parseInt(item.sizeId),
-                }
-                : {
-                  productId: productIdNum,
-                },
-            }
-          }
-
-        })
-        const productPromotion = promotionActive?.ProductPromotion
-        const optionValue = item.optionId ?? []
-
-        return {
-          ...item,
-          product, // Full product object
-          toppings: itemToppings, // Toppings for this item
-          size, // Full size object
-          productSize, // The specific ProductSize record (contains the correct price)
-          productPromotion,
-          optionValue
-        };
-      }),
-    );
-
-    const toppingPrice = (itemDetail) => {
-      return (
-        itemDetail.toppingItems?.reduce((sum, t) => {
-          const topping = allToppings.find(
-            (tp) => tp.id === parseInt(t.toppingId),
-          );
-          return sum + (topping?.price ?? 0) * parseInt(t.quantity);
-        }, 0) || 0
-      );
+    // Điều kiện lọc khuyến mãi (Active + Trong thời gian)
+    const promotionFilter = {
+      is_active: true,
+      start_date: { lte: now },
+      end_date: { gte: now },
     };
 
+    // 2. Batch Query: Lấy Product kẹp sẵn Promotion bên trong
+    const [products, toppings] = await Promise.all([
+      this.prisma.product.findMany({
+        where: { id: { in: productIds } },
+        include: {
+          Recipe: { include: { MaterialRecipe: true } },
+
+          // A. Lấy KM cho sản phẩm không size (Base Product)
+          ProductPromotion: {
+            where: {
+              productSizeId: null,
+              Promotion: promotionFilter
+            },
+            orderBy: { new_price: 'asc' } // Ưu tiên giá thấp nhất
+          },
+
+          // B. Lấy Sizes và KM của từng Size
+          sizes: {
+            include: {
+              size: true,
+              // Quan trọng: Lấy KM nằm TRONG ProductSize
+              ProductPromotion: {
+                where: { Promotion: promotionFilter },
+                orderBy: { new_price: 'asc' }
+              }
+            }
+          },
+        },
+      }),
+      this.prisma.product.findMany({
+        where: { id: { in: allToppingIds } },
+      }),
+    ]);
+
+    // 3. Tính toán (In-Memory)
     let original_price = 0;
-    for (const item of order_details) {
-      // check if this product in promtion or not 
-      const productPromotion = item.productPromotion
 
-      // 1. Get Base/Unit Price
-      const defaultProductPrice = item.product?.price || 0;
+    const orderDetailsData = createOrderDto.order_details.map((item) => {
+      const productId = parseInt(item.productId);
+      const sizeId = item.sizeId ? parseInt(item.sizeId) : null;
+      const quantity = parseInt(item.quantity);
 
-      // Use the price from the CORRECT ProductSize object, or fall back to the default product price
-      const unitPrice = productPromotion?.find(i => i.productId == parseInt(item.productId))?.new_price || item.productSize?.price || defaultProductPrice;
+      const product = products.find(p => p.id === productId);
+      if (!product) throw new BadRequestException(`Product ${productId} not found`);
 
-      // 2. Get Quantity
-      const quantity = item.quantity ? parseInt(item.quantity.toString()) : 0;
-
-      // 3. Get Topping Total
-      const toppingTotal = toppingPrice(item) * quantity;
-
-      // Sum: (Unit Price * Quantity) + Topping Price
-      original_price += (unitPrice * quantity) + toppingTotal;
-    }
-
-    // Tính toán giá gốc và giá cuối cùng trước khi áp dụng voucher/ khuyến mãi khách hàng thân thiết
-    const final_price = original_price;
-    //create order
-
-    const newOrder = await this.prisma.$transaction(async (tx) => {
-
-      for (const item of order_details) {
-        // 1. KIỂM TRA TỒN TẠI (Lỗi bạn đang gặp)
-        if (!item.product) {
-          const productId = item.productId;
-          throw new BadRequestException(
-            `Product ${productId} not found in database.`,
-          );
-        }
-
-        // 2. KIỂM TRA CÁC ĐIỀU KIỆN NGHIỆP VỤ KHÁC
-        // Gộp tất cả các điều kiện logic vào một khối IF lớn
-        if (
-          // A. Sản phẩm không hoạt động
-          !item.product.isActive ||
-          // B. Sản phẩm không có Recipe (null/undefined)
-          !item.product.Recipe ||
-          // C. Sản phẩm có Recipe nhưng mảng rỗng (không có công thức nào)
-          item.product.Recipe.length === 0 ||
-          // D. TẤT CẢ các Recipe đều không có MaterialRecipe (công thức không đầy đủ)
-          item.product.Recipe.every(
-            (r: any) => !r.MaterialRecipe || r.MaterialRecipe.length === 0,
-          )
-        ) {
-          const productNameOrId = item.product.name ?? item.productId;
-          throw new BadRequestException(
-            `Product ${productNameOrId} is inactive, not found, or has an incomplete recipe.`,
-          );
-        }
+      // Validation
+      if (
+        !product.isActive ||
+        !product.Recipe ||
+        product.Recipe.length === 0 ||
+        product.Recipe.every((r) => !r.MaterialRecipe || r.MaterialRecipe.length === 0)
+      ) {
+        throw new BadRequestException(`Product ${product.name} invalid recipe.`);
       }
 
-      return await tx.order.create({
-        data: {
-          customerPhone: createOrderDto.customerPhone,
-          original_price: original_price,
-          final_price: final_price,
-          note: createOrderDto.note,
-          staffId: parseInt(createOrderDto.staffId),
-          order_details: {
-            create: order_details.map((item) => ({
-              product_name: item.product?.name,
-              quantity: parseInt(item.quantity),
-              unit_price: item.productPromotion?.find(e => e.productId == parseInt(item.productId))?.new_price || item.productSize?.price || item.product?.price || 0,
+      // --- 💥 LOGIC GIÁ CHÍNH XÁC ---
+      let unitPrice = 0;
 
-              product: {
-                connect: { id: parseInt(item.productId) },
-              },
+      if (sizeId) {
+        // Trường hợp có Size: Tìm đúng ProductSize record (VD: Cafe Sữa - Size Vừa)
+        const productSizeRecord = product.sizes.find(ps => ps.size_id === sizeId);
 
-              size: item.sizeId
-                ? { connect: { id: parseInt(item.sizeId) } }
-                : undefined,
+        if (productSizeRecord) {
+          // Ưu tiên 1: Giá KM của Size đó (Lấy cái đầu tiên tìm thấy do đã filter ở query)
+          const sizePromoPrice = productSizeRecord.ProductPromotion?.[0]?.new_price;
+          // Ưu tiên 2: Giá gốc của Size đó
+          unitPrice = sizePromoPrice ?? productSizeRecord.price;
+        } else {
+          // Fallback an toàn
+          unitPrice = product.price ?? 0;
+        }
+      } else {
+        // Trường hợp không có Size (Sản phẩm đơn)
+        // Ưu tiên 1: Giá KM của Product
+        const basePromoPrice = product.ProductPromotion?.[0]?.new_price;
+        // Ưu tiên 2: Giá gốc Product
+        unitPrice = basePromoPrice ?? product.price ?? 0;
+      }
 
-              ToppingOrderDetail: item.toppingItems?.length
-                ? {
-                  create: item.toppingItems.map((t) => ({
-                    quantity: parseInt(t.quantity),
-                    unit_price:
-                      toppings.find((p) => p.id == parseInt(t.toppingId))
-                        ?.price ?? 0,
-                    topping: { connect: { id: parseInt(t.toppingId) } },
-                  })),
-                }
-                : undefined,
-              optionValue: item.optionValue.length > 0
-                ? {
-                  connect: item.optionValue
-                    .map(id => ({ id: parseInt(id) }))
-                }
-                : undefined,
-            })),
-          },
-        },
-        include: {
-          order_details: {
-            include: {
-              product: true,
-              size: true,
-              ToppingOrderDetail: {
-                include: {
-                  topping: true,
-                },
-              },
-            },
-          },
-        },
-      });
+      // Tính Topping
+      const itemToppings = item.toppingItems || [];
+      const toppingTotal = itemToppings.reduce((sum, t) => {
+        const tp = toppings.find(p => p.id === parseInt(t.toppingId));
+        return sum + (tp?.price ?? 0) * parseInt(t.quantity);
+      }, 0);
 
+      // Cộng dồn
+      original_price += (unitPrice * quantity) + (toppingTotal * quantity);
+
+      // Trả về data tạo DB
+      return {
+        product_name: product.name,
+        quantity: quantity,
+        unit_price: unitPrice,
+        product: { connect: { id: productId } },
+        size: sizeId ? { connect: { id: sizeId } } : undefined,
+        ToppingOrderDetail: itemToppings.length > 0 ? {
+          create: itemToppings.map(t => ({
+            quantity: parseInt(t.quantity),
+            unit_price: toppings.find(tp => tp.id === parseInt(t.toppingId))?.price ?? 0,
+            topping: { connect: { id: parseInt(t.toppingId) } }
+          }))
+        } : undefined,
+        optionValue: item.optionId && item.optionId.length > 0 ? {
+          connect: item.optionId.map(id => ({ id: parseInt(id) }))
+        } : undefined
+      };
     });
 
-    //  4. PHÁT SỰ KIỆN SAU KHI TRANSACTION THÀNH CÔNG
+    const final_price = original_price;
+
+    // 4. Transaction Create
+    const newOrder = await this.prisma.order.create({
+      data: {
+        customerPhone: createOrderDto.customerPhone,
+        original_price,
+        final_price,
+        note: createOrderDto.note,
+        staffId: parseInt(createOrderDto.staffId),
+        order_details: {
+          create: orderDetailsData
+        }
+      },
+      include: {
+        order_details: {
+          include: {
+            product: true,
+            size: true,
+            ToppingOrderDetail: { include: { topping: true } },
+          },
+        },
+      },
+    });
 
     await this.broadcastNewOrder(newOrder);
     await this.broadcastProcessOrderCount();
@@ -562,6 +718,8 @@ export class OrderService {
       throw new BadRequestException(
         'Can only make a payment with order status = pending',
       );
+    console.log('paymentDTO.amount', paymentDTO.amount);
+    console.log('order.final_price', order.final_price);
     if (paymentDTO.amount < order.final_price)
       throw new BadRequestException(
         'Invalid amount, amount must greater or equal final price',
@@ -937,8 +1095,8 @@ export class OrderService {
       vnp_Amount: order.final_price,
       //ip of client
       vnp_IpAddr: '127.0.0.1',
-      vnp_TxnRef: paymentDTO.orderId.toString(),
-      vnp_OrderInfo: `Thanh toan don hang ${paymentDTO.orderId}`,
+      vnp_TxnRef: randomUUID().replace(/-/g, ''),
+      vnp_OrderInfo: `Payment for order #${paymentDTO.orderId}`,
       vnp_OrderType: ProductCode.Other,
       vnp_ReturnUrl: process.env.FRONTEND_URL_RETURN_PAYMENT || 'http://localhost:3001/api/order/vnpay-return',
       vnp_Locale: VnpLocale.VN, // 'vn' hoặc 'en'

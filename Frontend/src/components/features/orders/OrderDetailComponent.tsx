@@ -262,22 +262,16 @@ export function OrderDetailComponent({
                             key={detail.id}
                             header={
                                 <Flex
-                                    justify={screens.sm ? "space-between" : "flex-start"}
-                                    align={screens.sm ? "center" : "stretch"}
                                     wrap="wrap"
-                                    vertical={!screens.sm}
-                                    style={{
-                                        width: "100%",
-                                        rowGap: 8,
-                                    }}
+                                    align="center"
+                                    style={{ width: "100%", gap: 8 }}
                                 >
-                                    {/* === LEFT: Ảnh + Tên sản phẩm === */}
+                                    {/* LEFT: Image + Name */}
                                     <Flex
                                         gap={8}
                                         align="center"
                                         style={{
-                                            flex: screens.sm ? "1 1 30%" : "1 1 100%",
-                                            minWidth: screens.sm ? 180 : 0,
+                                            flex: "1 1 100%",
                                         }}
                                     >
                                         <AppImageSize
@@ -292,49 +286,38 @@ export function OrderDetailComponent({
                                         </Text>
                                     </Flex>
 
-                                    {/* === CENTER: Mô tả === */}
+                                    {/* CENTER: Description */}
                                     <Flex
-                                        justify={screens.sm ? "center" : "flex-start"}
-                                        align="center"
                                         style={{
-                                            flex: screens.sm ? "1 1 40%" : "1 1 100%",
-                                            minWidth: screens.sm ? 200 : 0,
-                                            whiteSpace: "normal",
-                                            wordBreak: "break-word",
+                                            flex: "1 1 100%",
                                         }}
                                     >
-                                        <Text type="secondary">
-                                            {descriptionParts.length > 0
-                                                ? descriptionParts.join(" | ")
-                                                : ""}
+                                        <Text type="secondary" style={{ whiteSpace: "normal", lineHeight: 1.4 }}>
+                                            {descriptionParts.join(" | ")}
                                         </Text>
                                     </Flex>
 
-                                    {/* === RIGHT: Size + Quantity + Subtotal === */}
+                                    {/* RIGHT: Size + Qty + Price */}
                                     <Flex
                                         gap={12}
                                         align="center"
                                         style={{
-                                            flex: screens.sm ? "1 1 30%" : "1 1 100%",
-                                            minWidth: screens.sm ? 180 : 0,
-                                            justifyContent: screens.sm ? "flex-end" : "flex-start",
+                                            flex: "1 1 100%",
+                                            justifyContent: "flex-start",
                                         }}
                                     >
                                         <Text type="success">Size: {sizeText}</Text>
                                         <Divider type="vertical" />
                                         <Text>x{detail.quantity}</Text>
                                         <Divider type="vertical" />
-                                        <Text >
-                                            {formatPrice(total_unit_price, {
-                                                includeSymbol: true,
-                                            })}/1
-                                        </Text>
+                                        <Text>{formatPrice(total_unit_price, { includeSymbol: true })}/1</Text>
                                         <Divider type="vertical" />
                                         <Text strong>
                                             {formatPrice(subtotal, { includeSymbol: true })}
                                         </Text>
                                     </Flex>
                                 </Flex>
+
                             }
                         >
                             {/* ===== PRODUCT MAIN INFO ===== */}
