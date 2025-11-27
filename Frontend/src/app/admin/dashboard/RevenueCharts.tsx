@@ -491,19 +491,19 @@ const RevenueByProductChart = () => {
                 },
             },
         },
-        annotations: [
-            {
-                type: "text",
-                style: {
-                    text: chartTitle,
-                    x: "50%",
-                    y: "100%",
-                    textAlign: "center",
-                    fontSize: 14,
-                    fill: "#8c8c8c",
-                },
-            },
-        ],
+        // annotations: [
+        //     {
+        //         type: "text",
+        //         style: {
+        //             text: chartTitle,
+        //             x: "50%",
+        //             y: "100%",
+        //             textAlign: "center",
+        //             fontSize: 14,
+        //             fill: "#8c8c8c",
+        //         },
+        //     },
+        // ],
     };
 
     const handleDateRangeChange = (dates: [Dayjs | null, Dayjs | null] | null) => {
@@ -540,6 +540,11 @@ const RevenueByProductChart = () => {
         >
             <ChartLoader isLoading={isLoading} error={error} data={data?.data}>
                 <Pie {...config} />
+                <div style={{ textAlign: "center" }}>
+                    <Text type="secondary" strong style={{ fontSize: 14 }}>
+                        {chartTitle}
+                    </Text>
+                </div>
             </ChartLoader>
         </Card>
     );
@@ -644,19 +649,19 @@ const RevenueByCategoryChart = () => {
                 },
             ]
         },
-        annotations: [
-            {
-                type: "text",
-                style: {
-                    text: chartTitle,
-                    x: "50%",
-                    y: "100%",
-                    textAlign: "center",
-                    fontSize: 14,
-                    fill: "#8c8c8c",
-                },
-            },
-        ],
+        // annotations: [
+        //     {
+        //         type: "text",
+        //         style: {
+        //             text: chartTitle,
+        //             x: "50%",
+        //             y: "100%",
+        //             textAlign: "center",
+        //             fontSize: 14,
+        //             fill: "#8c8c8c",
+        //         },
+        //     },
+        // ],
 
 
         statistic: {
@@ -687,6 +692,11 @@ const RevenueByCategoryChart = () => {
         >
             <ChartLoader isLoading={isLoading} error={error} data={data?.data}>
                 <Pie {...config} />
+                <div style={{ textAlign: "center" }}>
+                    <Text type="secondary" strong style={{ fontSize: 14 }}>
+                        {chartTitle}
+                    </Text>
+                </div>
             </ChartLoader>
         </Card>
     );

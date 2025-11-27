@@ -141,8 +141,8 @@ export const ProfitChart: React.FC = () => {
     }
 
     return (
-        <>
-            <Title level={4}>Revenue Overview</Title>
+        <div style={{ marginTop: 24 }}>
+            <Title level={4}>Profit Overview</Title>
 
             <Card
                 title="Profit calculation based on revenue and material cost"
@@ -233,7 +233,7 @@ export const ProfitChart: React.FC = () => {
                     </div>
                 )}
             </Card>
-        </>
+        </div>
     );
 };
 

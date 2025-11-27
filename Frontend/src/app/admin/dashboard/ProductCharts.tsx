@@ -183,25 +183,30 @@ const ProductDistributionChart = () => {
                 },
             },
         },
-        annotations: [
-            {
-                type: "text",
-                style: {
-                    text: "Product Distribution by Category",
-                    x: "50%",
-                    y: "100%",
-                    textAlign: "center",
-                    fontSize: 14,
-                    fill: "#8c8c8c",
-                },
-            },
-        ],
+        // annotations: [
+        //     {
+        //         type: "text",
+        //         style: {
+        //             text: "Product Distribution by Category",
+        //             x: "50%",
+        //             y: "100%",
+        //             textAlign: "center",
+        //             fontSize: 14,
+        //             fill: "#8c8c8c",
+        //         },
+        //     },
+        // ],
     };
-
+    const chartTitle = "Product Distribution by Category";
     return (
         <Card title="Product Distribution by Category">
             <ChartLoader isLoading={isLoading} error={error} data={chartData}>
                 <Pie {...config} />
+                <div style={{ textAlign: "center" }}>
+                    <Text type="secondary" strong style={{ fontSize: 14 }}>
+                        {chartTitle}
+                    </Text>
+                </div>
             </ChartLoader>
         </Card>
     );
@@ -290,25 +295,30 @@ const TopNBestSellingChart = ({ params }: { params: TopNRevenueDto }) => {
                 true,
             );
         },
-        annotations: [
-            {
-                type: "text",
-                style: {
-                    text: chartTitle,
-                    x: "50%",
-                    y: "110%",
-                    textAlign: "center",
-                    fontSize: 14,
-                    fill: "#8c8c8c",
-                },
-            },
-        ],
+        // annotations: [
+        //     {
+        //         type: "text",
+        //         style: {
+        //             text: chartTitle,
+        //             x: "50%",
+        //             y: "110%",
+        //             textAlign: "center",
+        //             fontSize: 14,
+        //             fill: "#8c8c8c",
+        //         },
+        //     },
+        // ],
     };
 
     // Chỉ truyền `data` vào ChartLoader (không phải data?.data)
     return (
         <ChartLoader isLoading={isLoading} error={error} data={data}>
             <Bar {...config} />
+            <div style={{ textAlign: "center" }}>
+                <Text type="secondary" strong style={{ fontSize: 14 }}>
+                    {chartTitle}
+                </Text>
+            </div>
         </ChartLoader>
     );
 };

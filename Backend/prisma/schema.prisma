@@ -21,8 +21,8 @@ model User {
   // password hash for security
   hash         String
 
-  first_name String      @default("empty")
-  last_name  String      @default("empty")
+  first_name String      @default("")
+  last_name  String      @default("")
   is_locked  Boolean     @default(false)
   roles      Role[]      @relation("UserRoles")
   detail     UserDetail?
@@ -35,7 +35,7 @@ model User {
   Voucher             Voucher[]
   watseLog            watseLog[]
   Notifications Notification[]
-
+  addresses     UserAddress[]
   cart          Cart?
   @@map("users")
 }
@@ -125,13 +125,10 @@ model Product {
   Recipe           Recipe[]             @relation("RecipeProduct")
   ProductPromotion ProductPromotion[]
 
-  // "I am a base product (e.g., Latte) and these are my available toppings"
   toppings ProductTopping[] @relation("BaseProduct")
 
-  // "I am a topping (e.g., Pearl) and I am available on these base products"
   toppingOn ProductTopping[] @relation("Topping")
 
-  // "I am a topping and I am part of this order detail"
   ToppingOrderDetail ToppingOrderDetail[] @relation("ToppingOrder")
 
   cartItems          CartItem[]           // Sản phẩm nằm trong giỏ hàng nào
@@ -193,6 +190,30 @@ model ProductImage {
   @@map("product_images")
 }
 
+model UserAddress {
+  id            Int      @id @default(autoincrement())
+  userId        Int
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Thông tin người nhận tại địa chỉ này (có thể khác chủ tài khoản)
+  recipientName String
+  phoneNumber   String
+
+  // Địa chỉ chi tiết
+  fullAddress   String   // Số nhà, tên đường
+
+
+  // Đánh dấu địa chỉ mặc định
+  isDefault     Boolean  @default(false)
+
+  @@map("user_addresses")
+}
+
+enum OrderType {
+  POS       // Tại quầy
+  ONLINE    // Đặt qua Web/App
+}
+
 model Order {
   id             Int           @id @default(autoincrement())
   note           String?
@@ -200,13 +221,16 @@ model Order {
   final_price    Float
   created_at     DateTime      @default(now())
   order_details  OrderDetail[]
-  status         String        @default("pending") // pending, paid,completed, cancelled
+  status         String        @default("pending") // pending, paid, shipping (if order online), completed, cancelled
 
   customerPhone String?
   Customer      User?   @relation("CustomerOrders", fields: [customerPhone], references: [phone_number])
 
-  staffId             Int
-  Staff               User                  @relation("StaffOrders", fields: [staffId], references: [id])
+  orderType       OrderType @default(POS)
+  shippingAddress String?
+
+  staffId         Int?
+  Staff           User?     @relation("StaffOrders", fields: [staffId], references: [id])
   paymentDetailId     Int?                  @unique
   PaymentDetail       PaymentDetail?        @relation("OrderPaymentDetail", fields: [paymentDetailId], references: [id])
   invoiceUrl          String?
@@ -367,7 +391,7 @@ model MaterialImportation {
   importDate DateTime @default(now())
   Employee   User     @relation(fields: [employeeId], references: [id])
   employeeId Int
-
+  isRecorded  Boolean  @default(false) // Đánh dấu đã ghi nhận vào kho hay chưa
   @@map("material_importations")
 }
 
@@ -379,7 +403,7 @@ model InventoryAdjustment {
   relatedOrderId Int?
   relatedOrder   Order?   @relation(fields: [relatedOrderId], references: [id], onDelete: Cascade)
   adjustedAt     DateTime @default(now())
-
+  isRecorded  Boolean  @default(false) // Đánh dấu đã ghi nhận vào kho hay chưa
   @@map("inventory_adjustments")
 }
 
@@ -431,7 +455,7 @@ model ProductPromotion {
 model Voucher {
   id                  Int      @id @default(autoincrement())
   // Tên hiển thị của voucher
-  voucher_name        String   @default("empty")
+  voucher_name        String?
   code                String   @unique
   discount_percentage Float
   minAmountOrder      Float
@@ -472,9 +496,6 @@ model Cart {
   userId    Int        @unique // Mỗi user chỉ có 1 giỏ hàng active
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   items     CartItem[]
-  
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
 
   @@map("carts")
 }
@@ -482,7 +503,7 @@ model Cart {
 model CartItem {
   id        Int      @id @default(autoincrement())
   quantity  Int      @default(1)
-  
+
   cartId    Int
   cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
 
@@ -496,16 +517,15 @@ model CartItem {
   cartItemToppings CartItemTopping[]
 
   // Quan hệ n-n với OptionValue (Đá, Đường...)
-  optionSelections OptionValue[] 
+  optionSelections OptionValue[]
 
-  createdAt DateTime @default(now())
 
   @@map("cart_items")
 }
 
 model CartItemTopping {
   id          Int      @id @default(autoincrement())
-  quantity    Int      @default(1) // Số lượng topping (ví dụ: 2 phần trân châu)
+  quantity    Int      @default(1) // Số lượng topping cho một unit CartItem (ví dụ: 2 phần trân châu)
 
   cartItemId  Int
   cartItem    CartItem @relation(fields: [cartItemId], references: [id], onDelete: Cascade)

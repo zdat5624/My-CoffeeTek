@@ -428,7 +428,7 @@ export class ReportsService {
       // 8. Active Promotion
       activePromotionDetail,
       // 9. Out-of-Stock Materials
-      outOfStockMaterials,
+      outOfStockMaterialsArray,
       // 10. Top Payment Method Today (NEW)
       topPaymentMethodToday,
 
@@ -492,9 +492,18 @@ export class ReportsService {
       }),
 
       // 9. Out-of-Stock Materials
-      this.prisma.materialRemain.count({
-        where: { remain: { lte: 0 } }, // Zero or negative
-      }),
+      this.prisma.$queryRaw<number>`
+      SELECT COUNT(*)::int
+      FROM "materialRemain" mr
+      JOIN (
+        SELECT "materialId", MAX("date") AS latest_date
+        FROM "materialRemain"
+        GROUP BY "materialId"
+      ) latest
+        ON mr."materialId" = latest."materialId"
+       AND mr."date" = latest.latest_date
+      WHERE mr."remain" <= 0;
+    `,
 
       // 10. ⭐ NEW FIELD: Get today's most used payment method
       this.prisma.paymentMethod.findFirst({
@@ -517,6 +526,7 @@ export class ReportsService {
     ]);
 
     // Format the return object
+    const outOfStockMaterials = outOfStockMaterialsArray[0] || 0;
     return {
       revenueToday: revenueTodayAgg._sum.final_price || 0,
       revenueYesterday: revenueYesterdayAgg._sum.final_price || 0,
@@ -525,7 +535,7 @@ export class ReportsService {
       totalMembers: totalMembers,
       totalActiveProducts: totalActiveProducts,
       totalActiveToppings: totalActiveToppings,
-      outOfStockMaterials: outOfStockMaterials,
+      outOfStockMaterials: outOfStockMaterials.count || 0,
 
       // Keep the promotion name
       activePromotionName: activePromotionDetail?.name || 'No Promotion', // 'N/A' or 'No Promotion'
@@ -668,58 +678,123 @@ export class ReportsService {
     return chartData;
   }
 
+  // async getRevenueByYear(query: RevenueByYearDto) {
+  //   const { year } = query;
+
+  //   // 1. Tính toán ngày bắt đầu và kết thúc của năm
+  //   const startDate = new Date(year, 0, 1); // Tháng 0 (Tháng 1), ngày 1
+  //   startDate.setHours(0, 0, 0, 0);
+
+  //   const endDate = new Date(year, 11, 31); // Tháng 11 (Tháng 12), ngày 31
+  //   endDate.setHours(23, 59, 59, 999);
+
+  //   // 2. Định nghĩa kiểu trả về
+  //   // DATE_TRUNC 'month' sẽ trả về ngày đầu tiên của tháng
+  //   type RevenueData = {
+  //     month: Date;
+  //     revenue: number;
+  //   };
+
+  //   // 3. Truy vấn CSDL, nhóm theo 'month'
+  //   const revenueData = await this.prisma.$queryRaw<RevenueData[]>`
+  //     SELECT
+  //       DATE_TRUNC('month', "created_at") AS month,
+  //       SUM("final_price")::float AS revenue
+  //     FROM "orders"
+  //     WHERE
+  //       "created_at" >= ${startDate} AND
+  //       "created_at" <= ${endDate} AND
+  //       "status" IN ('completed')
+  //     GROUP BY month
+  //     ORDER BY month ASC;
+  //   `;
+
+  //   // 4. Xử lý và lấp đầy dữ liệu (12 tháng)
+  //   // Tạo Map: {'2025-01-01T00:00:00.000Z': 150000}
+  //   const revenueMap = new Map<string, number>();
+  //   for (const item of revenueData) {
+  //     // Key là ISOTimestamp của ngày đầu tiên của tháng
+  //     revenueMap.set(item.month.toISOString(), item.revenue);
+  //   }
+
+  //   // 5. Tạo mảng kết quả (luôn 12 tháng)
+  //   const chartData: { month: string; revenue: number }[] = [];
+
+  //   // Lặp qua 12 tháng (index từ 0 đến 11)
+  //   for (let i = 0; i < 12; i++) {
+  //     // Tạo key (Date object) của ngày đầu tiên của tháng i
+  //     const monthDate = new Date(year, i, 1);
+  //     const monthKey = monthDate.toISOString();
+
+  //     // Lấy doanh thu, nếu không có thì là 0
+  //     const revenue = revenueMap.get(monthKey) || 0;
+
+  //     // Format tháng về dạng MM-YYYY (ví dụ: '01-2025')
+  //     const monthStr = String(i + 1).padStart(2, '0');
+  //     const formattedMonth = `${monthStr}-${year}`;
+
+  //     chartData.push({
+  //       month: formattedMonth,
+  //       revenue: revenue,
+  //     });
+  //   }
+
+  //   return chartData;
+  // }
+
   async getRevenueByYear(query: RevenueByYearDto) {
-    const { year } = query;
+    // Đảm bảo year là số (đôi khi query trả về string)
+    const year = Number(query.year);
 
     // 1. Tính toán ngày bắt đầu và kết thúc của năm
-    const startDate = new Date(year, 0, 1); // Tháng 0 (Tháng 1), ngày 1
+    const startDate = new Date(year, 0, 1);
     startDate.setHours(0, 0, 0, 0);
 
-    const endDate = new Date(year, 11, 31); // Tháng 11 (Tháng 12), ngày 31
+    const endDate = new Date(year, 11, 31);
     endDate.setHours(23, 59, 59, 999);
 
     // 2. Định nghĩa kiểu trả về
-    // DATE_TRUNC 'month' sẽ trả về ngày đầu tiên của tháng
     type RevenueData = {
       month: Date;
       revenue: number;
     };
 
-    // 3. Truy vấn CSDL, nhóm theo 'month'
+    // 3. Truy vấn CSDL
     const revenueData = await this.prisma.$queryRaw<RevenueData[]>`
-      SELECT
-        DATE_TRUNC('month', "created_at") AS month,
+      SELECT 
+        DATE_TRUNC('month', "created_at") AS month, 
         SUM("final_price")::float AS revenue
       FROM "orders"
-      WHERE
-        "created_at" >= ${startDate} AND
-        "created_at" <= ${endDate} AND
+      WHERE 
+        "created_at" >= ${startDate} AND 
+        "created_at" <= ${endDate} AND 
         "status" IN ('completed')
       GROUP BY month
       ORDER BY month ASC;
     `;
 
-    // 4. Xử lý và lấp đầy dữ liệu (12 tháng)
-    // Tạo Map: {'2025-01-01T00:00:00.000Z': 150000}
+    // 4. Xử lý và lấp đầy dữ liệu
+    // Sử dụng key dạng "YYYY-M" (ví dụ: "2025-0" cho tháng 1) để tránh lỗi múi giờ
     const revenueMap = new Map<string, number>();
+
     for (const item of revenueData) {
-      // Key là ISOTimestamp của ngày đầu tiên của tháng
-      revenueMap.set(item.month.toISOString(), item.revenue);
+      const dateObj = new Date(item.month);
+      // Sử dụng getUTCFullYear và getUTCMonth vì dữ liệu DB trả về thường là UTC
+      // getUTCMonth() trả về 0-11
+      const key = `${dateObj.getUTCFullYear()}-${dateObj.getUTCMonth()}`;
+      revenueMap.set(key, item.revenue);
     }
 
     // 5. Tạo mảng kết quả (luôn 12 tháng)
     const chartData: { month: string; revenue: number }[] = [];
 
-    // Lặp qua 12 tháng (index từ 0 đến 11)
     for (let i = 0; i < 12; i++) {
-      // Tạo key (Date object) của ngày đầu tiên của tháng i
-      const monthDate = new Date(year, i, 1);
-      const monthKey = monthDate.toISOString();
+      // Tạo key tương ứng để tra cứu: "Năm-IndexTháng"
+      const lookupKey = `${year}-${i}`;
 
-      // Lấy doanh thu, nếu không có thì là 0
-      const revenue = revenueMap.get(monthKey) || 0;
+      const revenue = revenueMap.get(lookupKey) || 0;
 
-      // Format tháng về dạng MM-YYYY (ví dụ: '01-2025')
+      // Format hiển thị ra frontend (Tháng + 1 vì i bắt đầu từ 0)
       const monthStr = String(i + 1).padStart(2, '0');
       const formattedMonth = `${monthStr}-${year}`;
 

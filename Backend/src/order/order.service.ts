@@ -433,7 +433,7 @@ export class OrderService {
         original_price,
         final_price,
         note: createOrderDto.note,
-        staffId: parseInt(createOrderDto.staffId),
+        staffId: createOrderDto.staffId ? parseInt(createOrderDto.staffId) : null,
         order_details: {
           create: orderDetailsData
         }

@@ -20,8 +20,8 @@ function AuthGuardInner({ children }: { children: React.ReactNode }) {
 
     if (loading)
         return (
-            <div style={{ padding: 48, textAlign: "center" }}>
-                <Spin size="large" />
+            <div style={{ padding: 48, textAlign: "center", height: '100%', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <Spin size="default" />
             </div>
         );
 

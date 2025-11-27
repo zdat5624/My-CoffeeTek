@@ -1,0 +1,1 @@
+dump script: docker exec -t ad pg_dump -U admin -d firstApp --data-only --column-inserts > seed_data.sql
