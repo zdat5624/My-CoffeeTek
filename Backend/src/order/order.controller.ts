@@ -2,14 +2,12 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Query, Pu
 import { OrderService } from './order.service';
 import { CreateOrderDto } from './dto/order/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
-import { Role } from 'src/auth/decorator/role.decorator';
-import { RolesGuard } from 'src/auth/strategy/role.strategy';
 import { AuthGuard } from '@nestjs/passport';
 import { GetAllOrderDto } from './dto/GetAllOrder.dto';
 import { UpdateOrderStatusDTO } from './dto/UpdateOrderStatus.dto';
 import { PaymentDTO } from './dto/payment.dto';
-import { VerifyReturnUrl } from 'vnpay';
-
+import { GetUser } from 'src/auth/decorator';
+import * as client from '@prisma/client';
 @Controller('order')
 // @UseGuards(AuthGuard('jwt'), RolesGuard)
 // @Role('owner', 'manager','cashier')
@@ -28,6 +26,14 @@ export class OrderController {
   @Get('vnpay-ipn')
   vnpayIpn(@Query() query: any) {
     return this.orderService.vnpayIpn(query);
+  }
+
+
+  @Get('user')
+  @UseGuards(AuthGuard('jwt'))
+  findAllOfUser(@GetUser() user: client.User, @Query() dto: GetAllOrderDto,) {
+    dto.searchCustomerPhone = user.phone_number;
+    return this.orderService.findAllOfUser(dto);
   }
 
   @Get()
@@ -73,6 +79,8 @@ export class OrderController {
   getInvoice(@Param('orderId') orderId: string) {
     return this.orderService.getInvoice(+orderId);
   }
+
+
 
 
 

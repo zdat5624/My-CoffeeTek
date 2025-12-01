@@ -74,7 +74,10 @@ export interface OrderDetail {
     ToppingOrderDetail: ToppingOrderDetail[];
     optionValue: OptionValue[]; // OptionValue may include option_group as per JSON response
 }
-
+export enum OrderType {
+    POS = 'POS',       // Tại quầy
+    ONLINE = 'ONLINE'    // Đặt qua Web/App
+}
 export interface Order {
     id: number;
     note: string;
@@ -83,6 +86,8 @@ export interface Order {
     created_at: string;
     status: OrderStatus;
     customerPhone: string;
+    orderType: OrderType;
+    shippingAddress: string | null; // null khi order POS
     staffId: number;
     paymentDetailId: number | null;
     invoiceUrl: string | null;

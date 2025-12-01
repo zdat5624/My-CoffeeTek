@@ -5,7 +5,7 @@ import { SocialIcon } from 'react-social-icons'
 
 const PublicFooter = () => {
     return (
-        <footer className="bg-white">
+        <footer className=" bg-background shadow-sm mt-12 border-t border-gray-200">
             {/* Main Footer */}
             <div className="container mx-auto px-4 py-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -76,8 +76,8 @@ const PublicFooter = () => {
             </div>
 
             {/* Bottom Bar */}
-            <div className="border-t border-gray-200">
-                <div className="container mx-auto px-4 py-6">
+            <div >
+                <div className="container mx-auto px-4 py-4">
                     <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
                         {/* Copyright */}
                         <p className="text-sm text-gray-600">

@@ -1,4 +1,4 @@
-import { CreateProductDto, PaginatedResponse, Product, ProductSize, UpdateProductDto } from "@/interfaces";
+import { CreateProductDto, PaginatedResponse, Product, ProductDetail, ProductSize, UpdateProductDto } from "@/interfaces";
 import api from "@/lib/api";
 
 export interface GetAllProductsParams {
@@ -9,6 +9,26 @@ export interface GetAllProductsParams {
     orderBy?: string;
     orderDirection?: "asc" | "desc";
     isTopping?: boolean;
+}
+
+export interface GetAllMenuProductsParams {
+    page?: number;
+    size?: number;
+    search?: string;
+    categoryId?: number;
+
+    // Cập nhật các trường sort mới
+    orderBy?: 'id' | 'name' | 'ui_price' | 'discount_percent' | string;
+    orderDirection?: "asc" | "desc";
+
+    isTopping?: boolean;
+
+    // ✅ Mới: Lọc theo khoảng giá
+    minPrice?: number;
+    maxPrice?: number;
+
+    // ✅ Mới: Chỉ lấy sản phẩm đang giảm giá
+    isPromotion?: boolean;
 }
 
 export interface PosProductSize extends ProductSize {
@@ -26,11 +46,17 @@ export interface PosProduct extends Product {
     sizes?: PosProductSize[]; // Ghi đè kiểu 'sizes'
 }
 
+export interface MenuProduct extends Product {
+    ui_price: number;
+    old_price?: number | null;
+    sizes?: PosProductSize[]; // Ghi đè kiểu 'sizes'
+}
+
 /**
  * @description Kiểu trả về đầy đủ cho API /products/pos
  */
 export type PosProductResponse = PaginatedResponse<PosProduct>;
-
+export type MenuProductResponse = PaginatedResponse<MenuProduct>;
 export const productService = {
     // Lấy danh sách có phân trang + filter
     async getAll(params?: GetAllProductsParams) {
@@ -41,7 +67,7 @@ export const productService = {
     // Lấy chi tiết sản phẩm theo id
     async getById(id: number) {
         const res = await api.get(`/products/${id}`);
-        return res.data;
+        return res.data as Product;
     },
 
     // Tạo sản phẩm mới
@@ -64,6 +90,10 @@ export const productService = {
 
     async getAllPos(params?: GetAllProductsParams): Promise<PosProductResponse> {
         const res = await api.get("/products/pos", { params });
+        return res.data;
+    },
+    async getAllMenu(params?: GetAllProductsParams): Promise<MenuProductResponse> {
+        const res = await api.get("/products/menu", { params });
         return res.data;
     },
 };

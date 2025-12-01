@@ -15,6 +15,7 @@ import { ProductsService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { GetAllProductsDto } from './dto/get-all-products.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { GetAllMenuProductsDto } from './dto/get-all-menu-products.dto';
 
 @Controller('products')
 export class ProductsController {
@@ -24,16 +25,20 @@ export class ProductsController {
   create(@Body() dto: CreateProductDto) {
     return this.productsService.create(dto);
   }
-
+  @Get("pos")
+  findAllPos(@Query() query: GetAllProductsDto) {
+    return this.productsService.findAllPos(query);
+  }
+  @Get("menu")
+  findAllMenu(@Query() query: GetAllMenuProductsDto) {
+    return this.productsService.findAllMenu(query);
+  }
   @Get()
   findAll(@Query() query: GetAllProductsDto) {
     return this.productsService.findAll(query);
   }
 
-  @Get("pos")
-  findAllPos(@Query() query: GetAllProductsDto) {
-    return this.productsService.findAllPos(query);
-  }
+
 
   @Get(':id')
   findOne(@Param('id') id: string) {

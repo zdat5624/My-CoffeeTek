@@ -6,7 +6,8 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { GetAllProductsDto } from './dto/get-all-products.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ResponseGetAllDto } from 'src/common/dto/pagination.dto';
-import { PosProductDetailResponse, PosProductSizeResponse, ProductDetailResponse } from './dto/response.dto';
+import { MenuProductDetailResponse, PosProductDetailResponse, ProductDetailResponse, SellProductSizeResponse } from './dto/response.dto';
+import { GetAllMenuProductsDto } from './dto/get-all-menu-products.dto';
 
 @Injectable()
 export class ProductsService {
@@ -363,7 +364,7 @@ export class ProductsService {
       const mainPrice = mainPromotion?.new_price ?? mainOldPrice;
 
       // ✅ 8. Xử lý giá cho sản phẩm nhiều size
-      const mappedSizes: PosProductSizeResponse[] = product.sizes.map((s) => {
+      const mappedSizes: SellProductSizeResponse[] = product.sizes.map((s) => {
         const sizeOldPrice = s.price;
         const sizePromotion = s.ProductPromotion?.[0]; // Lấy KM đã lọc cho size này
         const sizePrice = sizePromotion?.new_price ?? sizeOldPrice;
@@ -642,6 +643,235 @@ export class ProductsService {
     return {
       message: `Deleted ${existingIds.length} product(s) successfully.`,
       deletedIds: existingIds,
+    };
+  }
+
+
+  async findAllMenu(
+    query: GetAllMenuProductsDto,
+  ): Promise<ResponseGetAllDto<MenuProductDetailResponse>> {
+    const {
+      page,
+      size,
+      search,
+      orderBy = 'id',
+      orderDirection = 'asc',
+      categoryId,
+      isTopping,
+      minPrice,
+      maxPrice,
+      isPromotion, // ✅
+    } = query;
+
+    // 1. Xử lý Category Filter (Giữ nguyên)
+    let categoryIds: number[] | undefined;
+    if (categoryId) {
+      const parent = await this.prisma.category.findUnique({
+        where: { id: categoryId },
+        include: { subcategories: true },
+      });
+      if (parent) {
+        categoryIds = [parent.id, ...parent.subcategories.map((c) => c.id)];
+      }
+    }
+
+    // 2. Tạo điều kiện Where cho Prisma (Giữ nguyên)
+    const where: Prisma.ProductWhereInput = {
+      AND: [
+        search
+          ? { name: { contains: search, mode: Prisma.QueryMode.insensitive } }
+          : {},
+        categoryId === -1
+          ? { category_id: null }
+          : categoryIds
+            ? { category_id: { in: categoryIds } }
+            : {},
+        isTopping !== undefined ? { isTopping } : {},
+      ],
+    };
+
+    // 3. Bộ lọc khuyến mãi (Giữ nguyên)
+    const now = new Date();
+    const promotionFilter = {
+      Promotion: {
+        is_active: true,
+        start_date: { lte: now },
+        end_date: { gte: now },
+      },
+    };
+
+    // 4. Query DB: LẤY TẤT CẢ (Giữ nguyên)
+    const productsRaw = await this.prisma.product.findMany({
+      where,
+      include: {
+        category: true,
+        images: true,
+        ProductPromotion: {
+          where: { productSizeId: null, ...promotionFilter },
+          select: { new_price: true },
+        },
+        sizes: {
+          orderBy: { size: { sort_index: 'asc' } },
+          include: {
+            size: true,
+            ProductPromotion: {
+              where: promotionFilter,
+              select: { new_price: true },
+            },
+          },
+        },
+        toppings: {
+          select: {
+            topping: { include: { images: true } },
+          },
+        },
+        optionValues: {
+          include: {
+            option_value: { include: { option_group: true } },
+          },
+        },
+      },
+      // Nếu sort là logic tính toán (price, discount) thì để Prisma sort mặc định
+      orderBy:
+        orderBy !== 'ui_price' && orderBy !== 'discount_percent'
+          ? { [orderBy]: orderDirection }
+          : undefined,
+    });
+
+    // ✅ 5. Mapping dữ liệu & Tính toán giá + Phần trăm giảm
+    const fullData = productsRaw.map((product) => {
+      // --- Logic Option Groups (Giữ nguyên) ---
+      const optionGroupsMap = new Map<number, any>();
+      for (const pov of product.optionValues) {
+        const group = pov.option_value.option_group;
+        const value = pov.option_value;
+        if (!optionGroupsMap.has(group.id)) {
+          optionGroupsMap.set(group.id, {
+            id: group.id,
+            name: group.name,
+            values: [],
+          });
+        }
+        optionGroupsMap
+          .get(group.id)
+          .values.push({
+            id: value.id,
+            name: value.name,
+            sort_index: value.sort_index,
+          });
+      }
+
+      // --- Logic Tính Giá ---
+      let uiPrice = 0;
+      let uiOldPrice: number | undefined = undefined;
+
+      const mappedSizes = product.sizes.map((s) => {
+        const sOld = s.price;
+        const sNew = s.ProductPromotion?.[0]?.new_price ?? sOld;
+        return {
+          id: s.id,
+          price: sNew,
+          old_price: sNew < sOld ? sOld : undefined,
+          size: s.size,
+        };
+      });
+
+      if (product.is_multi_size) {
+        if (mappedSizes.length > 0) {
+          uiPrice = mappedSizes[0].price;
+          uiOldPrice = mappedSizes[0].old_price;
+        }
+      } else {
+        const pOld = product.price ?? 0;
+        const pNew = product.ProductPromotion?.[0]?.new_price ?? pOld;
+        uiPrice = pNew;
+        uiOldPrice = pNew < pOld ? pOld : undefined;
+      }
+
+      // ✅ Tính phần trăm giảm giá (để sort)
+      let discountPercent = 0;
+      if (uiOldPrice && uiOldPrice > uiPrice) {
+        // Công thức: (Giá cũ - Giá mới) / Giá cũ * 100
+        discountPercent = Math.round(((uiOldPrice - uiPrice) / uiOldPrice) * 100);
+      }
+
+      // --- Logic Toppings (Giữ nguyên) ---
+      const mappedToppings = product.toppings.map((t) => ({
+        id: t.topping.id,
+        name: t.topping.name,
+        price: t.topping.price ?? 0,
+        image_name: t.topping.images[0]?.image_name || null,
+        sort_index: t.topping.images[0]?.sort_index || 0,
+      }));
+
+      return {
+        id: product.id,
+        name: product.name,
+        is_multi_size: product.is_multi_size,
+        product_detail: product.product_detail,
+        isTopping: product.isTopping,
+
+        ui_price: uiPrice,
+        old_price: uiOldPrice,
+        discount_percent: discountPercent, // ✅ Trường này dùng để sort nội bộ (hoặc trả về FE nếu cần)
+
+        price: product.price,
+        category_id: product.category_id,
+        category: product.category,
+        images: product.images,
+        sizes: mappedSizes,
+        toppings: mappedToppings,
+        optionGroups: Array.from(optionGroupsMap.values()),
+      };
+    });
+
+    // ✅ 6. Lọc dữ liệu (Filter In-Memory)
+    let processedData = fullData;
+
+    // 6.1 Lọc theo Range Giá
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      processedData = processedData.filter((item) => {
+        const checkMin = minPrice !== undefined ? item.ui_price >= minPrice : true;
+        const checkMax = maxPrice !== undefined ? item.ui_price <= maxPrice : true;
+        return checkMin && checkMax;
+      });
+    }
+
+    // 6.2 Lọc chỉ lấy sản phẩm có giảm giá
+    if (isPromotion) {
+      processedData = processedData.filter((item) => item.discount_percent > 0);
+    }
+
+    // ✅ 7. Sắp xếp (In-Memory Sort)
+    if (orderBy === 'ui_price') {
+      processedData.sort((a, b) => {
+        return orderDirection === 'asc'
+          ? a.ui_price - b.ui_price
+          : b.ui_price - a.ui_price;
+      });
+    } else if (orderBy === 'discount_percent') {
+      // Sort theo phần trăm giảm
+      processedData.sort((a, b) => {
+        return orderDirection === 'asc'
+          ? a.discount_percent - b.discount_percent // Thấp -> Cao
+          : b.discount_percent - a.discount_percent; // Cao -> Thấp (Thường dùng cái này)
+      });
+    }
+
+    // ✅ 8. Phân trang thủ công
+    const total = processedData.length;
+    const startIndex = (page - 1) * size;
+    const endIndex = startIndex + size;
+    const paginatedData = processedData.slice(startIndex, endIndex);
+
+    return {
+      data: paginatedData,
+      meta: {
+        total,
+        page,
+        size,
+        totalPages: Math.ceil(total / size) || 1,
+      },
     };
   }
 }

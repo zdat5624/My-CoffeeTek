@@ -17,6 +17,10 @@ const nextConfig = {
         protocol: "https",
         hostname: "f006.backblazeb2.com",
       },
+   {
+        protocol: 'https',
+        hostname: 'placehold.co', // Cho phép ảnh fallback
+      },
     ],
   },
 };

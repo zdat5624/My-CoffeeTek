@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
     buildActivity: false,
   },
   images: {
-    domains: ["cdn.pixabay.com", "images.unsplash.com", "your-server.com"],
+    domains: ["cdn.pixabay.com", "images.unsplash.com", "your-server.com", "placehold.co"],
   },
 };
 

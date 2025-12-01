@@ -65,6 +65,10 @@ export const orderService = {
         return res.data;
     },
 
+    async getAllOfUser(params?: GetAllParams) {
+        const res = await api.get("/order/user", { params });
+        return res.data;
+    },
     async getById(id: number) {
         const res = await api.get(`/order/${id}`);
         return res.data;

@@ -92,13 +92,13 @@ export async function seedProducts() {
     // ====================================================
     Logger.log('   ...Creating Toppings');
     const toppingsData = [
-        { name: 'Milk Cream', price: 15000, cat: 'Topping', image: 'top-milk-cream.jpg' },
-        { name: 'Black Pearl', price: 10000, cat: 'Topping', image: 'top-black-pearl.jpg' },
-        { name: 'White Pearl', price: 10000, cat: 'Topping', image: 'top-white-pearl.jpg' },
-        { name: 'Red Bean', price: 10000, cat: 'Topping', image: 'top-red-bean.jpg' },
-        { name: 'Grass Jelly', price: 10000, cat: 'Topping', image: 'top-grass-jelly.jpg' },
-        { name: 'Coconut Jelly', price: 10000, cat: 'Topping', image: 'top-coconut-jelly.jpg' },
-        { name: 'Pudding', price: 10000, cat: 'Topping', image: 'top-pudding.jpg' },
+        { name: 'Milk Cream', price: 15000, cat: 'Topping', image: 'top-milk-cream.png' },
+        { name: 'Black Pearl', price: 10000, cat: 'Topping', image: 'top-black-pearl.png' },
+        { name: 'White Pearl', price: 10000, cat: 'Topping', image: 'top-white-pearl.png' },
+        { name: 'Red Bean', price: 10000, cat: 'Topping', image: 'top-red-bean.png' },
+        { name: 'Grass Jelly', price: 10000, cat: 'Topping', image: 'top-grass-jelly.png' },
+        { name: 'Coconut Jelly', price: 10000, cat: 'Topping', image: 'top-coconut-jelly.png' },
+        { name: 'Pudding', price: 10000, cat: 'Topping', image: 'top-pudding.png' },
     ];
 
     const createdToppingIds: number[] = [];

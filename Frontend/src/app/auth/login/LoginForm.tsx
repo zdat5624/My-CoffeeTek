@@ -116,8 +116,9 @@ export default function LoginForm() {
       }
       backButton={<Link href="/"><ArrowLeftOutlined />  Back to Home</Link>}
     >
+      <FormError message={errors.general} />
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         {/* Username Input */}
         <FormInput
           id="username"
@@ -131,7 +132,7 @@ export default function LoginForm() {
         <FormError message={errors.username} />
 
         {/* Password */}
-        <div className="relative">
+        <div>
           <FormInput
             id="password"
             type="password"
@@ -140,22 +141,21 @@ export default function LoginForm() {
             label="Password"
             required
           />
-          <Link
-            href="/auth/forgot-password"
-            className="absolute right-0 -bottom-7 text-[15px] font-medium text-gray-100 hover:text-green-400 underline underline-offset-2 transition-all"
-          >
-            Forgot your password?
-          </Link>
+          <div className="text-right mt-1">
+            <Link href="/auth/forgot-password" className="text-sm font-medium text-gray-700 hover:text-green-400 underline">
+              Forgot your password?
+            </Link>
+          </div>
         </div>
         <FormError message={errors.password} />
 
         {/* General errors */}
-        <FormError message={errors.general} />
+
 
         {/* Submit button với loading spinner */}
         <FormButton
           type="submit"
-          className="w-full mt-4 flex items-center p-1 justify-center gap-1"
+          className="w-full flex items-center p-1 justify-center gap-1"
           disabled={loading}
         >
           {loading && (

@@ -1,3 +1,4 @@
+// uitils/priceFormatter.ts
 export const globalCurrency = 'VND' as Currency;
 
 

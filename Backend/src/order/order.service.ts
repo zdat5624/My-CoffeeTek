@@ -1199,4 +1199,98 @@ export class OrderService {
       data: paymentDetailData,
     });
   }
+
+
+  async findAllOfUser(query: GetAllOrderDto) {
+    const {
+      page,
+      size,
+      searchCustomerPhone,
+      searchStatuses,
+      searchFromDate,
+      searchToDate,
+      orderBy = 'id',
+      orderDirection = 'asc',
+    } = query;
+
+    if (!page || !size) {
+      throw new Error('page and size are required');
+    }
+
+    const skip = (page - 1) * size;
+
+    // ===== Build dynamic where =====
+    const where: any = {};
+
+
+    if (searchStatuses && searchStatuses.trim() !== '') {
+      const statuses = searchStatuses.split(',').map((s) => s.trim());
+      where.status = { in: statuses };
+    }
+
+    if (searchCustomerPhone && searchCustomerPhone.trim() !== '') {
+      where.customerPhone = {
+        contains: searchCustomerPhone,
+        mode: 'insensitive',
+      };
+    }
+
+    if (searchFromDate || searchToDate) {
+      where.created_at = {};
+      if (searchFromDate) {
+        where.created_at.gte = new Date(searchFromDate);
+      }
+      if (searchToDate) {
+        const endDate = new Date(searchToDate);
+        endDate.setHours(23, 59, 59, 999);
+        where.created_at.lte = endDate;
+      }
+    }
+
+
+    // ===== Truy vấn song song =====
+    const [data, total] =
+      await Promise.all([
+        this.prisma.order.findMany({
+          skip,
+          take: size,
+          where,
+          include: {
+            order_details: {
+              include: {
+                product: { include: { images: true } },
+                size: true,
+                ToppingOrderDetail: {
+                  include: {
+                    topping: { include: { images: true } },
+                  },
+                },
+                optionValue: { include: { option_group: true } },
+              },
+            },
+            Customer: true,
+            Staff: true,
+          },
+          orderBy: { [orderBy]: orderDirection },
+        }),
+
+        this.prisma.order.count({ where }),
+
+
+      ]);
+
+
+
+    // ===== Kết quả trả về =====
+    return {
+      data,
+      meta: {
+        page,
+        size,
+        total,
+        totalPages: Math.ceil(total / size),
+
+      },
+    };
+  }
 }

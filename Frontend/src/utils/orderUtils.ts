@@ -1,6 +1,7 @@
 // utils/orderUtils.ts
 import { OrderStatus } from "@/interfaces";
 
+// convert order status to color for UI display của antd Tag component
 export const getStatusColor = (status: OrderStatus): string => {
     switch (status) {
         case OrderStatus.PENDING:

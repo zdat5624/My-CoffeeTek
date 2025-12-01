@@ -1,3 +1,4 @@
+// uitils/formatPriceProduct.ts
 import { Product } from "@/interfaces";
 import {
     formatPrice,

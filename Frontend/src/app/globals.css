@@ -207,3 +207,32 @@
 .x52200039-scroll-area-viewport {
   pointer-events: auto !important;
 }
+
+
+/* @keyframes pulseGlow {
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  50% {
+    transform: scale(1.8);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+} */
+/* Trong file CSS của bạn */
+
+@keyframes pulseGlow {
+  0% {
+    transform: scale(1);
+    opacity: 0.5; /* Bắt đầu mờ hơn một chút để đỡ gắt */
+  }
+  100% {
+    transform: scale(2); /* Lan rộng ra gấp 2.5 lần */
+    opacity: 0; /* Mờ dần hoàn toàn */
+  }
+}
+
