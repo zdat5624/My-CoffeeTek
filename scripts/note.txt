@@ -1,0 +1,15 @@
+# 1. Export từ local, bỏ owner
+pg_dump "postgresql://admin:123456@localhost:5433/firstApp" --no-owner -f backup.sql
+
+
+postgresql://admin:123456@localhost:5433/firstApp?schema=public
+
+# 2. Reset Railway
+psql "postgresql://postgres:SshvMnuXqxuUprDYFwRncSDYhIHrbqxc@tramway.proxy.rlwy.net:40766/railway"
+# Trong psql shell:
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+\q
+
+# 3. Import backup
+psql "postgresql://postgres:SshvMnuXqxuUprDYFwRncSDYhIHrbqxc@tramway.proxy.rlwy.net:40766/railway" -f backup.sql

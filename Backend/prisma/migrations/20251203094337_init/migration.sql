@@ -268,6 +268,7 @@ CREATE TABLE "watseLog" (
     "quantity" DOUBLE PRECISION NOT NULL,
     "reason" TEXT NOT NULL,
     "date" TIMESTAMP(3) NOT NULL,
+    "isRecorded" BOOLEAN NOT NULL DEFAULT false,
     "employeeId" INTEGER,
 
     CONSTRAINT "watseLog_pkey" PRIMARY KEY ("id")
@@ -398,6 +399,20 @@ CREATE TABLE "cart_item_toppings" (
     "toppingId" INTEGER NOT NULL,
 
     CONSTRAINT "cart_item_toppings_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "product_reviews" (
+    "id" SERIAL NOT NULL,
+    "rating" INTEGER NOT NULL,
+    "comment" TEXT,
+    "isHidden" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "productId" INTEGER NOT NULL,
+
+    CONSTRAINT "product_reviews_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -627,6 +642,12 @@ ALTER TABLE "cart_item_toppings" ADD CONSTRAINT "cart_item_toppings_cartItemId_f
 
 -- AddForeignKey
 ALTER TABLE "cart_item_toppings" ADD CONSTRAINT "cart_item_toppings_toppingId_fkey" FOREIGN KEY ("toppingId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "product_reviews" ADD CONSTRAINT "product_reviews_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "product_reviews" ADD CONSTRAINT "product_reviews_productId_fkey" FOREIGN KEY ("productId") REFERENCES "products"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_UserRoles" ADD CONSTRAINT "_UserRoles_A_fkey" FOREIGN KEY ("A") REFERENCES "roles"("id") ON DELETE CASCADE ON UPDATE CASCADE;

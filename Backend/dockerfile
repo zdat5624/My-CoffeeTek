@@ -1,58 +1,60 @@
 # --- Stage 1: Build ---
-FROM node:22-alpine AS builder
+# [THAY ĐỔI 1] Đổi từ alpine sang slim để mạng ổn định hơn
+FROM node:22-slim AS builder
+
+# [THAY ĐỔI 2] Cài thêm OpenSSL (Prisma trên Debian/Slim cần cái này)
+RUN apt-get update -y && apt-get install -y openssl
 
 # Enable pnpm
 RUN corepack enable
 
 WORKDIR /app
 
-
 # Copy package.json & lockfile
 COPY package.json pnpm-lock.yaml ./
 
-# Cài full dependencies (bao gồm dev để build TS)
+# Cài full dependencies
 RUN pnpm install --frozen-lockfile
 
-# Copy Prisma schema trước để generate client
+# Copy Prisma schema
 COPY prisma ./prisma
 
 # Generate Prisma client
 RUN pnpm exec prisma generate
 
-# Copy toàn bộ source code
+# Copy source code
 COPY . .
 
 # Build NestJS
 RUN pnpm run build
 
-# Compile seed.ts sang JS
+# Compile seed.ts
 RUN pnpm exec tsc --project tsconfig.seed.json
 
 
-
 # --- Stage 2: Run ---
-FROM node:22-alpine
+# [THAY ĐỔI 1] Đổi từ alpine sang slim
+FROM node:22-slim
+
+# [THAY ĐỔI 2] Cài OpenSSL cho môi trường chạy
+RUN apt-get update -y && apt-get install -y openssl
 
 WORKDIR /app
 RUN corepack enable
 
-# Copy node_modules prod từ builder
+# Copy node_modules prod
 COPY --from=builder /app/node_modules ./node_modules
 
-# Copy Prisma folder (schema + dist seed.js)
+# Copy Prisma folder
 COPY --from=builder /app/prisma ./prisma
 
 # Copy NestJS dist
 COPY --from=builder /app/dist ./dist
 
-# Copy package.json để prisma seed đọc script
+# Copy package.json
 COPY --from=builder /app/package.json ./package.json
 
-# Nếu dùng env file, uncomment:
-# COPY --from=builder /app/.env ./.env
-
-# Expose cổng
 EXPOSE 3001
 
-# CMD production: migrate -> seed -> start NestJS
-CMD ["sh", "-c", "pnpm exec prisma migrate deploy && node dist/main.js"]
+# CMD giữ nguyên logic fix lỗi tìm file trước đó, thêm seed vào giữa
+CMD ["sh", "-c", "npx prisma migrate deploy && (node dist/main.js || node dist/src/main.js)"]

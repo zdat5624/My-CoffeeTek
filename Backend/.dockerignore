@@ -1,6 +1,5 @@
 node_modules
 dist
-.prisma
 .pnpm-store
 .git
 .gitignore
@@ -10,3 +9,4 @@ docker-compose*
 tmp
 *.md
 .env
+scripts
