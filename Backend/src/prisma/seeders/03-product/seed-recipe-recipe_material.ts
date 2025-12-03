@@ -51,6 +51,10 @@ export async function seedRecipes() {
     // 2. DEFINE FORMULA LOGIC (Dùng đơn vị g và ml)
     // =====================================================================
 
+    // =====================================================================
+    // 2. DEFINE FORMULA LOGIC (WITH RANDOM FALLBACK)
+    // =====================================================================
+
     const generateIngredients = (productName: string, categoryName: string) => {
         const name = productName.toLowerCase();
         const cat = categoryName.toLowerCase();
@@ -58,61 +62,94 @@ export async function seedRecipes() {
         // Khai báo kiểu rõ ràng
         const ingredients: {
             code: string;
-            // Định lượng (nhập số g hoặc ml)
             consume: { s: number; m: number; l: number }
         }[] = [];
 
-        // --- LOGIC: CÀ PHÊ (Đơn vị: gam hạt, ml sữa) ---
-        if (cat.includes('coffee') || cat.includes('espresso') || cat.includes('americano') || cat.includes('phin') || cat.includes('cold brew')) {
-            const beanCode = name.includes('arabica') || name.includes('latte') || name.includes('cappuccino')
-                ? 'mat_bean_arabica'
-                : 'mat_bean_robusta';
+        // --- GROUP 1: CÀ PHÊ & CHOCOLATE ---
+        if (
+            cat.includes('coffee') ||
+            cat.includes('espresso') ||
+            cat.includes('americano') ||
+            cat.includes('phin') ||
+            cat.includes('cold brew') ||
+            cat.includes('chocolate')
+        ) {
+            if (!cat.includes('chocolate')) {
+                const beanCode = name.includes('arabica') || name.includes('latte') || name.includes('cappuccino')
+                    ? 'mat_bean_arabica'
+                    : 'mat_bean_robusta';
+                ingredients.push({ code: beanCode, consume: { s: 20, m: 25, l: 30 } });
+            } else {
+                // Giả sử có bột choco, nếu chưa có thì Fallback bên dưới sẽ lo liệu nếu code này sai
+                ingredients.push({ code: 'mat_powder_chocolate', consume: { s: 15, m: 20, l: 25 } });
+            }
 
-            // 20g, 25g, 30g Cà phê
-            ingredients.push({ code: beanCode, consume: { s: 20, m: 25, l: 30 } });
-
-            if (name.includes('milk') || name.includes('latte') || name.includes('bac xiu')) {
-                // 30ml, 40ml, 50ml Sữa đặc (Lưu ý: kho đang lưu sữa đặc là 'can' hoặc 'l', code sẽ tự xử lý)
+            if (name.includes('milk') || name.includes('latte') || name.includes('bac xiu') || cat.includes('chocolate')) {
                 ingredients.push({ code: 'mat_milk_condensed', consume: { s: 30, m: 40, l: 50 } });
-                // 100ml, 150ml, 200ml Sữa tươi
                 ingredients.push({ code: 'mat_milk_fresh', consume: { s: 100, m: 150, l: 200 } });
             }
             if (name.includes('sugar') || name.includes('black')) {
-                ingredients.push({ code: 'mat_syrup_sugar', consume: { s: 10, m: 15, l: 20 } }); // 10ml đường
+                ingredients.push({ code: 'mat_syrup_sugar', consume: { s: 10, m: 15, l: 20 } });
             }
         }
 
-        // --- LOGIC: TRÀ (Đơn vị: gam trà, ml syrup) ---
-        else if (cat.includes('tea')) {
+        // --- GROUP 2: TRÀ & MATCHA ---
+        else if (cat.includes('tea') || cat.includes('matcha')) {
             let teaCode = 'mat_tea_black';
             if (name.includes('oolong')) teaCode = 'mat_tea_oolong';
             if (name.includes('jasmine') || name.includes('fruit')) teaCode = 'mat_tea_jasmine';
-            if (name.includes('matcha')) teaCode = 'mat_matcha_vn';
 
-            // 5g, 7g, 9g Trà lá
+            if (cat.includes('matcha') || name.includes('matcha')) {
+                teaCode = 'mat_matcha_vn';
+            }
+
             ingredients.push({ code: teaCode, consume: { s: 5, m: 7, l: 9 } });
 
-            if (name.includes('milk')) {
-                // 20g, 30g, 40g Bột kem béo
+            if (name.includes('milk') || cat.includes('matcha')) {
                 ingredients.push({ code: 'mat_powder_creamer', consume: { s: 20, m: 30, l: 40 } });
             }
             if (name.includes('fruit') || name.includes('peach') || name.includes('lychee')) {
-                // 20ml, 30ml, 40ml Syrup
                 ingredients.push({ code: 'mat_syrup_peach', consume: { s: 20, m: 30, l: 40 } });
             }
         }
 
-        // --- LOGIC: FRAPPE (Đơn vị: gam bột, ml sữa) ---
+        // --- GROUP 3: FRAPPE ---
         else if (cat.includes('frappe')) {
-            ingredients.push({ code: 'mat_powder_frappe', consume: { s: 20, m: 25, l: 30 } }); // 20g Bột
-            ingredients.push({ code: 'mat_milk_fresh', consume: { s: 50, m: 70, l: 100 } });   // 50ml Sữa
-            ingredients.push({ code: 'mat_cream_whipping', consume: { s: 30, m: 30, l: 30 } }); // 30ml Kem
+            ingredients.push({ code: 'mat_powder_frappe', consume: { s: 20, m: 25, l: 30 } });
+            ingredients.push({ code: 'mat_milk_fresh', consume: { s: 50, m: 70, l: 100 } });
+            ingredients.push({ code: 'mat_cream_whipping', consume: { s: 30, m: 30, l: 30 } });
         }
 
-        // --- LOGIC: TOPPING (Đơn vị: gam) ---
+        // --- GROUP 4: TOPPING ---
         else if (cat.includes('topping')) {
-            // 50g Topping mỗi phần
             ingredients.push({ code: 'mat_top_pearl', consume: { s: 50, m: 50, l: 50 } });
+        }
+
+        // =================================================================
+        // 🛡️ FALLBACK LOGIC (Đảm bảo 100% có công thức)
+        // =================================================================
+
+        // Kiểm tra xem nãy giờ có add được nguyên liệu nào không.
+        // Nếu KHÔNG (ví dụ: Food, Bánh, hoặc món lạ chưa define), ta sẽ add Random.
+        if (ingredients.length === 0) {
+            // Logger.warn(`⚠️ Using Fallback Random Recipe for: ${productName} (${categoryName})`);
+
+            // Danh sách các nguyên liệu "An toàn" (Chắc chắn có trong DB Material)
+            // Tránh dùng nguyên liệu lạ kẻo lỗi Foreign Key
+            const safeFallbackMaterials = [
+                'mat_syrup_sugar', // Đường (Gần như món nào cũng có thể dính líu)
+                'mat_milk_fresh',  // Sữa tươi
+                'mat_water_ro',    // Nước lọc (Nếu bạn đã seed, nếu chưa thì bỏ dòng này)
+            ];
+
+            // Random lấy 1 món
+            const randomCode = safeFallbackMaterials[Math.floor(Math.random() * safeFallbackMaterials.length)];
+
+            // Add vào với số lượng tượng trưng
+            ingredients.push({
+                code: randomCode,
+                consume: { s: 10, m: 10, l: 10 }
+            });
         }
 
         return ingredients;
@@ -191,3 +228,15 @@ export async function seedRecipes() {
     Logger.log(`✅ Seeded Recipes for ${successCount} products (Converted to storage units)`);
     return prisma.recipe.findMany();
 }
+
+
+// seedRecipes()
+//     .then(() => {
+//         console.log('Done!');
+//         prisma.$disconnect();
+//     })
+//     .catch((e) => {
+//         console.error(e);
+//         prisma.$disconnect();
+//         process.exit(1);
+//     });

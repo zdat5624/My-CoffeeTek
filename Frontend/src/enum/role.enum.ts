@@ -1,3 +1,4 @@
+// enum/role.enum.ts
 export enum Role {
     OWNER = 'owner',
     MANAGER = 'manager',

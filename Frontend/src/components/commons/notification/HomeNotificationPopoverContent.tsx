@@ -14,7 +14,7 @@ import {
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import { notificationService } from '@/services/notificationService';
-import { Notification } from '@/interfaces';
+import { Notification, NotificationType } from '@/interfaces';
 import { getLucideIcon, NOTIFICATION_TAB_ITEMS_CUSTOMER } from '@/utils';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';

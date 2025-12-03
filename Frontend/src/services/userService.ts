@@ -17,10 +17,12 @@ export interface GetAllUsersParams {
  * ✅ Kiểu dữ liệu cập nhật thông tin user
  */
 export interface UpdateUserDto {
+    firstName?: string;
+    lastName?: string;
     address?: string;
     sex?: GenderEnum;
     birthday?: string;
-    avatar?: File; // upload file
+    avatar?: File;
 }
 
 /**
@@ -31,10 +33,36 @@ export interface ChangeSensitiveInfoDto {
     phone?: string;
 }
 
+export interface LoyalLevel {
+    id: number;
+    name: string;
+    required_points: number;
+}
+
+export interface MyPointResponse {
+    points: number;
+    loyalLevel: LoyalLevel | null;
+}
+
 /**
  * ✅ Service call API user
  */
 export const userService = {
+
+    // ✅ Mới: Hàm update avatar
+    async updateAvatar(file: File) {
+        const formData = new FormData();
+        // Key 'avatar' phải khớp với @UploadedFile() avatar trong NestJS Controller
+        formData.append("avatar", file);
+
+        const res = await api.patch("/user/avatar", formData, {
+            headers: {
+                // Ghi đè Content-Type để gửi form-data thay vì json
+                "Content-Type": "multipart/form-data",
+            },
+        });
+        return res.data;
+    },
     /**
      * Lấy thông tin user hiện tại
      */
@@ -56,14 +84,18 @@ export const userService = {
      */
     async updateInfo(id: number, data: UpdateUserDto) {
         const formData = new FormData();
-        if (data.avatar) formData.append("avatar", data.avatar);
+        // ✅ Append tên họ vào form data
+        if (data.firstName) formData.append("firstName", data.firstName);
+        if (data.lastName) formData.append("lastName", data.lastName);
+
         if (data.address) formData.append("address", data.address);
         if (data.sex) formData.append("sex", data.sex);
         if (data.birthday) formData.append("birthday", data.birthday);
 
-        const res = await api.patch(`/user/update/${id}`, formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-        });
+        // Avatar xử lý ở component khác hoặc nếu muốn gộp chung thì uncomment dòng dưới
+        // if (data.avatar) formData.append("avatar", data.avatar);
+
+        const res = await api.patch(`/user/update/${id}`, formData)
         return res.data;
     },
 
@@ -100,4 +132,15 @@ export const userService = {
         const res = await api.get("/user/search-pos", { params });
         return res.data;
     },
+
+    /**
+ * Lấy điểm tích lũy của user hiện tại
+ */
+    async getMyPoints() {
+        const res = await api.get<MyPointResponse>("/user/me/points");
+        return res.data;
+    },
+
+
+
 };

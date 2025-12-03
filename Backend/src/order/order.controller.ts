@@ -8,6 +8,7 @@ import { UpdateOrderStatusDTO } from './dto/UpdateOrderStatus.dto';
 import { PaymentDTO } from './dto/payment.dto';
 import { GetUser } from 'src/auth/decorator';
 import * as client from '@prisma/client';
+import { OrderStatus } from 'src/common/enums/orderStatus.enum';
 @Controller('order')
 // @UseGuards(AuthGuard('jwt'), RolesGuard)
 // @Role('owner', 'manager','cashier')
@@ -50,12 +51,21 @@ export class OrderController {
     return this.orderService.findOne(Number(id));
   }
   @Patch('status')
-  updateStatus(@Body() dto: UpdateOrderStatusDTO) {
-    return this.orderService.updateStatus(dto);
+  updateStatus(@Body() dto: UpdateOrderStatusDTO, @GetUser() user: client.User) {
+    return this.orderService.updateStatus(dto, undefined, user.id);
+  }
+
+  @Patch('user/cancel/:id')
+  userCancelOrder(@Param('id') id: number, @GetUser() user: client.User) {
+    const dto = new UpdateOrderStatusDTO();
+    dto.orderId = id;
+    dto.status = OrderStatus.CANCELED;
+
+    return this.orderService.updateStatus(dto, undefined, undefined);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto) {
+  update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto, @GetUser() user: client.User) {
     return this.orderService.update(+id, updateOrderDto);
   }
 

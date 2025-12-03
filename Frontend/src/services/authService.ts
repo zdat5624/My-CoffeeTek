@@ -24,6 +24,13 @@ export interface UserRole {
     role_name: Role;
 }
 
+// Interface cho payload đổi pass
+export interface ChangePasswordPayload {
+    oldPassword: string;
+    newPassword: string;
+}
+
+// services/authService.ts
 export interface UserLoginInfo {
     id: number;
     phone_number: string;
@@ -37,6 +44,8 @@ export interface UserLoginInfo {
 
 
 export const authService = {
+
+
     async loginGoogle(payload: { token: string }) {
         const res = await api.post(`/auth/google`, payload);
         return res.data;
@@ -65,6 +74,11 @@ export const authService = {
         const res = await api.put(`/auth/security`, payload);
         return res.data;
     },
+    async changePassword(payload: ChangePasswordPayload) {
+        const res = await api.post('/auth/change-password', payload);
+        return res.data;
+    },
+
 
     // Trong authService.ts
     logout(setUser?: React.Dispatch<React.SetStateAction<UserLoginInfo | null>>, setIsAuthenticated?: React.Dispatch<React.SetStateAction<boolean>>) {

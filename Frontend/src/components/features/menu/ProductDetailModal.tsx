@@ -33,7 +33,7 @@ export const ProductDetailModal = ({
             <DialogContent
                 className="
                     !p-0 !gap-0 
-                    !max-w-4xl w-full 
+                    !max-w-5xl w-full 
                     h-[90vh] 
                     bg-white rounded-3xl 
                     overflow-hidden
@@ -48,10 +48,10 @@ export const ProductDetailModal = ({
 
                 {/* CUSTOM CLOSE BUTTON */}
                 {/* FIX: Bọc button trong div để tránh bị class [&>button]:hidden của DialogContent ẩn mất */}
-                <div className="absolute top-4 right-4 z-50">
+                <div className="absolute top-2 right-2 z-50">
                     <button
                         onClick={onClose}
-                        className="p-2 bg-white/80 hover:bg-white rounded-full text-gray-500 hover:text-red-500 shadow-sm transition-colors"
+                        className="border border-gray-100 p-2 bg-white/60 hover:bg-white rounded-full text-gray-500 hover:text-red-500 shadow-sm transition-colors"
                         type="button"
                     >
                         <X size={20} />

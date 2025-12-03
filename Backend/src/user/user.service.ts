@@ -6,24 +6,28 @@ import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class UserService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async updateInfo(
     id: number,
     updateDto: UserUpdateDTO,
-    avatar_url?: string,
   ): Promise<string> {
     const userUpdated = await this.prisma.user.update({
       where: {
         id: id,
       },
       data: {
+        // ✅ Cập nhật thông tin ở bảng User
+        first_name: updateDto.firstName,
+        last_name: updateDto.lastName,
+
+        // ✅ Cập nhật thông tin ở bảng UserDetail
         detail: {
           update: {
             address: updateDto.address,
-            sex: updateDto.sex,
-            birthday: updateDto.birthday,
-            avatar_url,
+            sex: updateDto.sex, // Đảm bảo mapping đúng enum Frontend gửi lên
+            // Xử lý ngày sinh: Nếu có gửi lên thì mới update
+            ...(updateDto.birthday && { birthday: new Date(updateDto.birthday) }),
           },
         },
       },
@@ -187,6 +191,54 @@ export class UserService {
         total,
         totalPages: Math.ceil(total / size),
       },
+    };
+  }
+
+  async updateAvatar(userId: number, avatarUrl: string) {
+    const userUpdated = await this.prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        detail: {
+          update: {
+            avatar_url: avatarUrl,
+          },
+        },
+      },
+      select: {
+        id: true,
+        email: true,
+        first_name: true,
+        last_name: true,
+        detail: {
+          select: {
+            avatar_url: true // Chỉ trả về avatar mới để FE cập nhật
+          }
+        }
+      }
+    });
+
+    return userUpdated;
+  }
+
+
+  async getMyPoints(phone: string) {
+    const pointRecord = await this.prisma.customerPoint.findUnique({
+      where: { customerPhone: phone },
+      include: {
+        loyalLevel: true,
+      },
+    });
+
+    if (!pointRecord) {
+      // Nếu chưa có điểm thì tạo mặc định
+      return { points: 0, loyalLevel: null };
+    }
+
+    return {
+      points: pointRecord.points,
+      loyalLevel: pointRecord.loyalLevel,
     };
   }
 }

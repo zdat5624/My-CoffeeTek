@@ -18,6 +18,7 @@ import { seedLoyalLevels } from './seeders/05-customer/seed-loyal-level';
 import { seedPromotions } from './seeders/05-customer/seed-promotion';
 import { seedVouchers } from './seeders/05-customer/seed-voucher';
 import { seedOrders } from './seeders/06-order/seed-order';
+import { seedReviews } from './seeders/03-product/seed-review';
 
 const prisma = new PrismaClient();
 const logger = new Logger('PrismaSeed');
@@ -45,6 +46,7 @@ async function main() {
   await seedCategories();
   await seedProducts();
   await seedRecipes();
+  await seedReviews();
 
   // 4
   await seedMaterialImportations();

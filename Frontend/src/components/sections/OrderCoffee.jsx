@@ -1,6 +1,7 @@
 import React from 'react'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 
 const OrderCoffee = () => {
   return (
@@ -13,11 +14,11 @@ const OrderCoffee = () => {
               Order Your Favourite Coffee
             </h1>
             <p className="text-gray-600 text-base sm:text-lg mb-6 max-w-xl mx-auto lg:mx-0">
-              Amet minim mollit non deserunt ullamco est sit aliqua dolor do amet sint. 
-              Velit officia consequat duis enim velit mollit. 
+              Amet minim mollit non deserunt ullamco est sit aliqua dolor do amet sint.
+              Velit officia consequat duis enim velit mollit.
               Exercitation veniam consequat sunt nostrud amet.
             </p>
-            
+
             {/* Stats Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-2 gap-6 mb-8">
               <div className="text-center lg:text-left">
@@ -40,12 +41,16 @@ const OrderCoffee = () => {
 
             {/* Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-              <Button className="px-8 py-6 rounded-full bg-gray-900 hover:bg-gray-700 transition-colors text-white">
-                Order Now
-              </Button>
-              <Button variant="outline" className="px-8 py-6 rounded-full hover:bg-gray-100 transition-colors">
-                Watch Video
-              </Button>
+              <Link href={"/menu"}>
+                <Button className="px-8 py-6 rounded-full bg-gray-900 hover:bg-gray-700 transition-colors text-white">
+                  Order Now
+                </Button>
+              </Link>
+              <Link href={"/promotions"}>
+                <Button variant="outline" className="px-8 py-6 rounded-full hover:bg-gray-100 transition-colors">
+                  Get Voucher
+                </Button>
+              </Link>
             </div>
           </div>
 
@@ -59,7 +64,7 @@ const OrderCoffee = () => {
                 className="object-contain rounded-md shadow-lg shadow-gray-300 -rotate-12"
               />
             </div>
-            
+
             {/* Floating Elements */}
             <div className="hidden lg:block absolute top-10 left-0 animate-bounce">
               <Image

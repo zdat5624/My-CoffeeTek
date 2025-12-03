@@ -14,6 +14,7 @@ import { CartService } from './cart.service';
 import { AddToCartDto, UpdateCartItemDto } from './dto/cart.dto';
 import { GetUser } from 'src/auth/decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { CheckoutCartDto } from './dto/checkout.dto';
 // import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard'; // Uncomment khi dùng
 
 @Controller('cart')
@@ -21,7 +22,10 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 export class CartController {
     constructor(private readonly cartService: CartService) { }
 
-
+    @Post('checkout')
+    async checkout(@GetUser('id') userId: number, @Body() dto: CheckoutCartDto) {
+        return this.cartService.createOrderFromCart(userId, dto);
+    }
 
     @Get()
     async getCart(@Request() req, @GetUser('id') userId: number) {

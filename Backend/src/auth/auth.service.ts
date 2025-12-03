@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { authAssignRoleDto, authChangePasswordDto, authForgetPasswordDto, authLoginDto, authSignUpDto, UpdateProfileDto } from './dto';
 import * as argon from 'argon2';
@@ -104,39 +104,72 @@ export class AuthService {
         }
     }
 
+    // async changePassword(user: client.User, dto: authChangePasswordDto) {
+    //     if (dto.oldPassword === dto.newPassword) {
+    //         throw new ForbiddenException("New password must be different from old password");
+    //     }
+    //     // const pwMatches = await argon.verify(user.hash, dto.oldPassword);
+    //     const userUpdated = await this.prisma.user.findUnique({
+    //         where: {
+    //             id: user.id,
+    //         }
+    //     })
+    //     if (!userUpdated) throw new ForbiddenException("User not found");
+
+    //     const pwMatches = await argon.verify(userUpdated.hash, dto.oldPassword);
+
+    //     if (!pwMatches) throw new ForbiddenException("Old password is incorrect");
+
+
+    //     // update password
+    //     const passwordUpdate = this.prisma.user.update({
+    //         where: {
+    //             id: user.id,
+    //         },
+    //         data: {
+    //             hash: await argon.hash(dto.newPassword)
+    //         },
+    //         select: {
+    //             id: true,
+    //             phone_number: true,
+    //             first_name: true,
+    //             last_name: true,
+    //         }
+    //     })
+    //     return passwordUpdate;
+    // }
+
     async changePassword(user: client.User, dto: authChangePasswordDto) {
+        // 1. Kiểm tra mật khẩu mới không được trùng mật khẩu cũ (Optional)
         if (dto.oldPassword === dto.newPassword) {
-            throw new ForbiddenException("New password must be different from old password");
+            throw new BadRequestException("New password must be different from old password");
         }
-        // const pwMatches = await argon.verify(user.hash, dto.oldPassword);
-        const userUpdated = await this.prisma.user.findUnique({
-            where: {
-                id: user.id,
-            }
-        })
-        if (!userUpdated) throw new ForbiddenException("User not found");
 
-        const pwMatches = await argon.verify(userUpdated.hash, dto.oldPassword);
+        // 2. Lấy thông tin user mới nhất từ DB để đảm bảo hash chính xác
+        const dbUser = await this.prisma.user.findUnique({
+            where: { id: user.id },
+        });
 
-        if (!pwMatches) throw new ForbiddenException("Old password is incorrect");
+        if (!dbUser) throw new ForbiddenException("User not found");
 
+        // 3. Xác thực mật khẩu cũ (Quan trọng nhất)
+        const pwMatches = await argon.verify(dbUser.hash, dto.oldPassword);
+        if (!pwMatches) {
+            throw new ForbiddenException("Incorrect old password");
+        }
 
-        // update password
-        const passwordUpdate = this.prisma.user.update({
-            where: {
-                id: user.id,
-            },
+        // 4. Mã hóa mật khẩu mới
+        const newHash = await argon.hash(dto.newPassword);
+
+        // 5. Cập nhật vào DB
+        await this.prisma.user.update({
+            where: { id: user.id },
             data: {
-                hash: await argon.hash(dto.newPassword)
+                hash: newHash,
             },
-            select: {
-                id: true,
-                phone_number: true,
-                first_name: true,
-                last_name: true,
-            }
-        })
-        return passwordUpdate;
+        });
+
+        return { message: "Password changed successfully" };
     }
     async forgetPassword(dto: authForgetPasswordDto) {
         //send email to user

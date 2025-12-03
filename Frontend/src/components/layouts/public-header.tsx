@@ -23,7 +23,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuGroup,
 } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useAuthContext } from '@/contexts/AuthContext'
 import { authService } from '@/services'
 import { HomeNotificationBellAndBadge } from '../commons/notification'
@@ -49,6 +49,17 @@ const PublicHeader = () => {
       return `${user.first_name[0]}${user.last_name[0]}`.toUpperCase();
     }
     return "U";
+  }
+
+
+  const getAvatarUrl = (url?: string) => {
+    if (!url) return undefined;
+    // Nếu là full url (bắt đầu bằng http hoặc https)
+    if (url.startsWith('http')) {
+      return url;
+    }
+    // Nếu là tên ảnh, nối với domain
+    return `${process.env.NEXT_PUBLIC_IMAGE_BASE_URL}/${url}`;
   }
 
   return (
@@ -104,6 +115,12 @@ const PublicHeader = () => {
                 <DropdownMenu>
                   <DropdownMenuTrigger className="relative h-10 w-10 rounded-full border border-gray-200 hover:bg-gray-100 transition flex items-center justify-center outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-600 ml-2">
                     <Avatar className="h-full w-full">
+                      {/* ✅ Update: Thêm AvatarImage */}
+                      <AvatarImage
+                        src={getAvatarUrl(user?.detail?.avatar_url)}
+                        alt="User Avatar"
+                        className="object-cover"
+                      />
                       <AvatarFallback className="select-none bg-primary/10 text-primary font-semibold">
                         {getInitials()}
                       </AvatarFallback>
@@ -169,16 +186,25 @@ const PublicHeader = () => {
         {isMenuOpen && (
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1">
-              {['Home', 'Menu', 'About Us', 'Shop', 'Contact'].map((item, i) => (
-                <Link
-                  key={i}
-                  href={item === 'Home' ? '/' : `/${item.toLowerCase().replace(/\s/g, '')}`}
-                  className="block px-3 py-2 rounded-md font-medium hover:text-coffee-600 hover:bg-gray-50"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  {item}
-                </Link>
-              ))}
+              {/* ✅ ĐÃ SỬA: Thêm 'Promotions' vào danh sách và bỏ 'Shop' để khớp với Desktop */}
+              {['Home', 'Menu', 'Promotions', 'About', 'Contact'].map((item, i) => {
+                // Logic tạo đường dẫn (href)
+                const href = item === 'Home' ? '/' : `/${item.toLowerCase()}`;
+
+                // Logic hiển thị tên (Label)
+                const label = item === 'Promotions' ? 'Promotion' : item === 'About' ? 'About Us' : item;
+
+                return (
+                  <Link
+                    key={i}
+                    href={href}
+                    className="block px-3 py-2 rounded-md font-medium hover:text-coffee-600 hover:bg-gray-50"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    {label}
+                  </Link>
+                );
+              })}
             </div>
 
             <div className="px-5 py-4 border-t border-gray-200 space-y-2">
@@ -195,6 +221,12 @@ const PublicHeader = () => {
                 <>
                   <div className="flex items-center gap-3 px-2 py-2 mb-2">
                     <Avatar className="h-10 w-10 border border-gray-200">
+                      {/* ✅ Update: Thêm AvatarImage cho Mobile */}
+                      <AvatarImage
+                        src={getAvatarUrl(user?.detail?.avatar_url)}
+                        alt="User Avatar"
+                        className="object-cover"
+                      />
                       <AvatarFallback className="bg-primary/10">{getInitials()}</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col">

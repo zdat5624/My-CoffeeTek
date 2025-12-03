@@ -1,5 +1,5 @@
 // utils/orderUtils.ts
-import { OrderStatus } from "@/interfaces";
+import { OrderStatus, OrderType } from "@/interfaces";
 
 // convert order status to color for UI display của antd Tag component
 export const getStatusColor = (status: OrderStatus): string => {
@@ -19,3 +19,13 @@ export const getStatusColor = (status: OrderStatus): string => {
     }
 };
 
+export const getOrderTypeColor = (type: OrderType): string => {
+    switch (type) {
+        case OrderType.ONLINE:
+            return "cyan";       // Không trùng bất kỳ status nào
+        case OrderType.POS:
+            return "volcano";    // Không trùng và rất nổi bật
+        default:
+            return "default";
+    }
+};

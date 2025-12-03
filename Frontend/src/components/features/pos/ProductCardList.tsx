@@ -162,7 +162,7 @@ export function ProductCardList({
                                         <div
                                             className="absolute top-0 right-0 text-white text-xs font-semibold px-2 py-1 rounded-bl-md overflow-hidden"
                                             style={{
-                                                minWidth: "40%",
+                                                minWidth: "50%",
                                                 position: "absolute",
                                                 top: 0,
                                                 right: 0,
@@ -175,7 +175,7 @@ export function ProductCardList({
                                                     position: "absolute",
                                                     inset: 0,
                                                     backgroundColor: token.colorPrimary,
-                                                    opacity: 0.75,
+                                                    opacity: 0.55,
                                                     backdropFilter: "blur(8px)",
                                                     WebkitBackdropFilter: "blur(8px)",
                                                     zIndex: 0,

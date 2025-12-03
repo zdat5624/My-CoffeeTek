@@ -19,6 +19,10 @@ export class GetNotificationsDto {
     type?: string;
 
     @IsOptional()
+    @IsString()
+    excludeType?: string;
+
+    @IsOptional()
     @Transform(({ value }) => {
         if (value === 'true') return true;
         if (value === 'false') return false;

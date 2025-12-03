@@ -13,11 +13,11 @@ import {
     Tag,
     Empty,
 } from "antd";
-import { MenuFoldOutlined, MenuUnfoldOutlined } from "@ant-design/icons";
-import type { Order } from "@/interfaces";
+import { ClockCircleOutlined, GlobalOutlined, MenuFoldOutlined, MenuUnfoldOutlined, ShopOutlined } from "@ant-design/icons";
+import { OrderType, type Order } from "@/interfaces";
 import dayjs from "dayjs";
 import { useDarkMode } from "@/components/providers";
-import { getStatusColor } from "@/utils";
+import { getOrderTypeColor, getStatusColor } from "@/utils";
 import { ProcessOrderCountDisplay } from "@/components/features/pos";
 import Link from "next/link";
 
@@ -56,33 +56,111 @@ export default function LeftSider({
         if (onCollapse) onCollapse(!collapsed);
     };
 
-    const menuItems = orders.map((order) => ({
-        key: order.id.toString(),
-        label: collapsed ? (
-            // Khi sider đóng: chỉ hiển thị ID
-            <Text>{order.id}</Text>
-        ) : (
-            // Khi mở: hiển thị đầy đủ thông tin
-            <div style={{ display: "flex", flexDirection: "column" }}>
-                <Text strong>{`Order #${order.id}`}</Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                    <Tag
-                        style={{ marginBottom: 5 }}
-                        color={getStatusColor(order.status)}
-                    >
-                        {order.status.toUpperCase()}
-                    </Tag>
-                    {`• ${dayjs(order.created_at).format("DD-MM-YYYY HH:mm")}`}
-                </Text>
-            </div>
-        ),
-        title: `Order #${order.id} (${order.status.toUpperCase()})`,
-        style: {
-            marginBottom: 1,
-            paddingTop: 24,  // <-- Tăng giá trị này
-            paddingBottom: 24 // <-- Tăng giá trị này
-        },
-    }));
+    const menuItems = orders.map((order) => {
+        // 1. Lấy màu từ Utils
+        const statusColor = getStatusColor(order.status);
+        const typeColor = getOrderTypeColor(order.orderType);
+
+        // 2. Chọn icon dựa trên OrderType
+        const TypeIcon = order.orderType === OrderType.ONLINE ? GlobalOutlined : ShopOutlined;
+
+        return {
+            key: order.id.toString(),
+            // Tooltip hiển thị khi hover chuột
+            title: `Order #${order.id} - ${order.status} - ${order.orderType}`,
+
+            // STYLE CHO KHUNG CHỨA (Container của 1 item)
+            style: {
+                height: "auto",             // Để nội dung tự giãn, không bị cắt
+                minHeight: "70px",
+                marginBottom: "8px",        // Khoảng cách giữa các card
+                padding: 0,                 // Reset padding mặc định của Menu
+                overflow: "hidden",
+                borderRadius: "6px",        // Bo góc nhẹ
+                border: "1px solid #f0f0f0",
+                backgroundColor: "#fff",
+                lineHeight: 1.5,            // Reset line-height
+            },
+
+            label: collapsed ? (
+                // === GIAO DIỆN KHI ĐÓNG (Collapsed) ===
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    height: '100%',
+                    padding: '10px 0'
+                }}>
+                    {/* Hiển thị hình tròn màu theo Status, bên trong là icon Type */}
+                    <div style={{
+                        width: 36, height: 36,
+                        backgroundColor: statusColor, // Màu nền theo trạng thái
+                        color: '#fff',
+                        borderRadius: '50%',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                    }}>
+                        <TypeIcon style={{ fontSize: 18 }} />
+                    </div>
+                </div>
+            ) : (
+                // === GIAO DIỆN KHI MỞ (Expanded) ===
+                <div style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    // Border trái dày 5px theo màu Status => Điểm nhấn quan trọng nhất
+                    borderLeft: `5px solid ${statusColor}`,
+                    padding: "10px 12px",
+                    height: "100%",
+                    width: "100%"
+                }}>
+                    {/* Hàng 1: ID và Status */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                        <Text strong style={{ fontSize: 15 }}>
+                            ORDER #{order.id}
+                        </Text>
+                        {/* Tag Status nhỏ gọn góc phải */}
+                        <Tag color={statusColor} style={{ margin: 0, fontSize: 10, lineHeight: '18px', border: 'none' }}>
+                            {order.status.toLocaleUpperCase()}
+                        </Tag>
+                    </div>
+
+                    {/* Hàng 2: Loại đơn và Thời gian */}
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+
+                        {/* Tag hiển thị Loại đơn (Online/POS) dùng màu từ utils */}
+                        <Tag
+                            color={typeColor}
+                            style={{
+                                margin: 0,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 4,
+                                padding: '0 6px'
+                            }}
+                        >
+                            <TypeIcon />
+                            <span style={{ fontWeight: 500 }}>{order.orderType}</span>
+                        </Tag>
+
+                        {/* Thời gian hiển thị nhạt hơn */}
+                        <Text type="secondary" style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <ClockCircleOutlined style={{ fontSize: 10 }} />
+                            {dayjs(order.created_at).format("HH:mm")}
+                        </Text>
+                    </div>
+
+                    {/* (Tùy chọn) Hàng 3: Hiển thị ngày tháng nếu cần */}
+                    <div style={{ marginTop: 4, textAlign: 'right' }}>
+                        <Text type="secondary" style={{ fontSize: 10 }}>
+                            {dayjs(order.created_at).format("DD/MM/YYYY")}
+                        </Text>
+                    </div>
+                </div>
+            ),
+        };
+    });
+
 
     // console.log(menuItems); // Bạn có thể xoá dòng này nếu không cần
 
@@ -95,16 +173,23 @@ export default function LeftSider({
             return (
                 <div
                     style={{
+                        position: "fixed",
+                        top: 0,
+                        left: 0,
+                        width: "100vw",
+                        height: "100vh",
                         display: "flex",
                         justifyContent: "center",
                         alignItems: "center",
-                        height: "100%",
+                        backgroundColor: "rgba(255,255,255,0.7)", // optional
+                        zIndex: 9999,
                     }}
                 >
                     <Spin />
                 </div>
             );
         }
+
 
         // 2. Trạng thái Trống (Tải xong, không có dữ liệu)
         if (!loading && orders.length === 0) {

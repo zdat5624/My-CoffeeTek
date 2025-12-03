@@ -22,17 +22,13 @@ export class NotificationService {
 
         // TODO: Tại đây bạn có thể gọi SocketGateway để bắn event realtime báo có notification mới
         const unreadCount = (await this.countUnread(dto.userId)).unreadCount;
-        this.eventsGateway.sendToUser(
-            dto.userId,
-            'new_notification',
-            unreadCount,
-        );
+        this.eventsGateway.sendToUser(dto.userId, 'new_notification', unreadCount,);
 
         return notification;
     }
 
     // 2. Lấy danh sách thông báo của một User (có phân trang)
-    async findAllByUser(userId: number, page: number = 1, limit: number = 10, type?: string, isRead?: boolean) {
+    async findAllByUser(userId: number, page: number = 1, limit: number = 10, type?: string, isRead?: boolean, excludeType?: string) {
         const skip = (page - 1) * limit;
 
         // Xây dựng điều kiện lọc
@@ -40,6 +36,9 @@ export class NotificationService {
 
         if (type) {
             whereCondition.type = type;
+        }
+        if (excludeType) {
+            whereCondition.type = { not: excludeType };
         }
 
         // [MỚI] Nếu isRead có giá trị (true/false) thì thêm vào điều kiện
@@ -119,6 +118,60 @@ export class NotificationService {
 
         return await this.prisma.notification.delete({
             where: { id },
+        });
+    }
+
+
+    async sendToRoles(
+        roles: string[], // VD: ['admin', 'staff']
+        title: string,
+        message: string,
+        type: NotificationType, // Hoặc dùng Enum NotificationType
+        payload: any = {}, // Data đính kèm (VD: orderId)
+    ) {
+        // 1. Tìm danh sách User IDs có role mong muốn
+        const users = await this.prisma.user.findMany({
+            where: {
+                roles: {
+                    some: {
+                        role_name: { in: roles, mode: 'insensitive' }, // 'staff', 'Staff', 'admin'...
+                    },
+                },
+            },
+            select: { id: true },
+        });
+
+        const userIds = users.map((u) => u.id);
+        if (userIds.length === 0) return;
+
+        // 2. Tạo Notification vào DB (Dùng createMany để tối ưu performance)
+        await this.prisma.notification.createMany({
+            data: userIds.map((userId) => ({
+                userId,
+                title,
+                message,
+                type,
+                isRead: false,
+            })),
+        });
+
+        // 3. Gửi Socket đến từng User Online
+        // Lưu ý: Client phải đã join room "user_{id}" như logic trong gateway bạn gửi
+        userIds.forEach(async (userId) => {
+            // Cách 1: Chỉ bắn tín hiệu có noti mới (nhẹ server)
+            // Client nhận được sẽ tự gọi API getUnreadCount hoặc tự +1 badge
+            // this.eventsGateway.sendToUser(userId, 'new_notification', {
+            //     title,
+            //     message,
+            //     type,
+            //     ...payload
+            // });
+
+            // Cách 2: Nếu muốn gửi kèm số lượng chưa đọc luôn (Nặng hơn vì phải count lại cho từng người)
+
+            const { unreadCount } = await this.countUnread(userId);
+            this.eventsGateway.sendToUser(userId, 'new_notification', unreadCount);
+
         });
     }
 }

@@ -19,6 +19,13 @@ import { GetAllVoucherDto } from './dto/get-all-voucher.dto';
 export class VoucherController {
   constructor(private readonly voucherService: VoucherService) { }
 
+
+  @Get('my-active')
+  getMyActiveVouchers(@Query('customerPhone') customerPhone: string) {
+    // console.log('>>> customerPhone', customerPhone);
+    return this.voucherService.findActiveVouchersByCustomer(customerPhone);
+  }
+
   @Get('groups')
   getVoucherGroups(@Query() query: GetVoucherGroupDto) {
     return this.voucherService.findVoucherGroups(query);
@@ -52,13 +59,11 @@ export class VoucherController {
   // --- Mới ---
   @Put('exchange-by-group')
   exchangeByGroup(@Body() dto: ExchangeVoucherDTO & { groupName: string }) {
+    // console.log('>>> dto', dto);
     return this.voucherService.exchangeVoucherByGroup(dto.groupName, dto.customerPhone);
   }
 
-  @Get('my-active')
-  getMyActiveVouchers(@Query('customerPhone') customerPhone: string) {
-    return this.voucherService.findActiveVouchersByCustomer(customerPhone);
-  }
+
 
   @Delete('group/:groupName')
   deleteByGroup(@Param('groupName') groupName: string) {

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Link from "next/link";
 import {
     Trash2,
     Minus,
@@ -11,146 +12,35 @@ import {
     ChevronRight,
     Loader2,
     ShieldCheck,
-    CheckCircle2,
     Home,
-    ShoppingBag
+    ShoppingBag,
+    X,
+    MessageSquarePlus
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from "@/components/ui/dialog";
 import { toast } from "sonner";
 
-// ==========================================
-// 1. INTERFACES (DATA MODELS)
-// ==========================================
+// Import Context & Services
+import { useCart } from "@/contexts/CartContext";
+import { useAuthContext } from "@/contexts/AuthContext";
+import { CartItemResponse, cartService, CheckoutCartBody } from "@/services/cartService";
+import { addressService, AddressResponse } from "@/services/addressService";
+import { orderService, CreateOrder } from "@/services/orderService"; // ✅ Import orderService
+import { AppImage } from "@/components/ui/app-image";
 
-// --- Cart Interfaces (From Input) ---
-export interface AddToCartBody {
-    productId: number;
-    quantity: number;
-    sizeId?: number;
-    toppingIds?: number[];
-    optionIds?: number[];
-}
+// Import Types
+import { Voucher, OrderType } from "@/interfaces/types"; // ✅ Import OrderType
 
-export interface UpdateCartItemBody {
-    quantity?: number;
-    sizeId?: number;
-    toppingIds?: number[];
-    optionIds?: number[];
-}
-
-export interface CartItemToppingResponse {
-    name: string;
-    price: number;
-    quantity: number; // Added quantity field
-}
-
-export interface CartItemOptionResponse {
-    groupName: string;
-    valueName: string;
-}
-
-export interface CartItemResponse {
-    id: number;
-    productId: number;
-    productName: string;
-    productImage: string | null;
-    sizeName: string | null;
-    quantity: number;
-    unitPrice: number;      // Price per item (including size/toppings)
-    originalPrice: number | null;
-    totalPrice: number;     // unitPrice * quantity
-    toppings: CartItemToppingResponse[];
-    options: CartItemOptionResponse[];
-}
-
-export interface CartResponse {
-    id: number;
-    totalQuantity: number;
-    totalTemporaryPrice: number; // Subtotal
-    items: CartItemResponse[];
-}
-
-// --- Mock Interfaces for Address & Voucher ---
-interface UserAddress {
-    id: number;
-    name: string;
-    phone: string;
-    address: string;
-    isDefault: boolean;
-}
-
-interface Voucher {
-    id: number;
-    code: string;
-    description: string;
-    discountAmount: number;
-    minOrderValue: number;
-}
+// Import Features
+import { AddressSelectionDialog } from "@/components/features/checkout/AddressSelectionDialog";
+import { VoucherSelectionDialog } from "@/components/features/checkout/VoucherSelectionDialog";
 
 // ==========================================
-// 2. MOCK DATA & SERVICE (SIMULATION)
-// ==========================================
-
-const MOCK_ADDRESSES: UserAddress[] = [
-    { id: 1, name: "Tuan Le", phone: "0909123456", address: "123 Nguyen Hue, Ben Nghe Ward, District 1, HCMC", isDefault: true },
-    { id: 2, name: "Tuan Le (Office)", phone: "0909123456", address: "Landmark 81, Binh Thanh District, HCMC", isDefault: false },
-];
-
-const MOCK_VOUCHERS: Voucher[] = [
-    { id: 1, code: "WELCOME50", description: "Discount 50k for new members", discountAmount: 50000, minOrderValue: 100000 },
-    { id: 2, code: "FREESHIP", description: "Free shipping (Max 15k)", discountAmount: 15000, minOrderValue: 50000 },
-];
-
-// Mock API Service
-const cartService = {
-    async getCart(): Promise<CartResponse> {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 800));
-        return {
-            id: 101,
-            totalQuantity: 2,
-            totalTemporaryPrice: 110000,
-            items: [
-                {
-                    id: 1, productId: 101, productName: "Cappuccino Delight", productImage: "https://images.unsplash.com/photo-1572442388796-11668a67e569?auto=format&fit=crop&w=200&q=80",
-                    sizeName: "M", quantity: 1, unitPrice: 55000, originalPrice: 65000, totalPrice: 55000,
-                    toppings: [],
-                    options: [{ groupName: "Sugar", valueName: "50%" }, { groupName: "Ice", valueName: "Normal" }]
-                },
-                {
-                    id: 2, productId: 102, productName: "Royal Milk Tea", productImage: "https://images.unsplash.com/photo-1556679343-c7306c1976bc?auto=format&fit=crop&w=200&q=80",
-                    sizeName: "L", quantity: 1, unitPrice: 55000, originalPrice: null, totalPrice: 55000,
-                    toppings: [{ name: "Black Pearl", price: 5000, quantity: 1 }, { name: "Pudding", price: 5000, quantity: 2 }],
-                    options: [{ groupName: "Sugar", valueName: "100%" }]
-                }
-            ]
-        };
-    },
-    async updateItem(itemId: number, data: UpdateCartItemBody) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        return true;
-    },
-    async removeItem(itemId: number) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-        return true;
-    }
-};
-
-// ==========================================
-// 3. UTILITIES
+// 1. UTILITIES & HELPER FUNCTIONS
 // ==========================================
 const formatVND = (price: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
@@ -159,140 +49,227 @@ const formatVND = (price: number) => {
 const getProductDescription = (item: CartItemResponse): string => {
     const parts: string[] = [];
     if (item.sizeName) parts.push(`Size: ${item.sizeName}`);
-    if (item.options?.length) {
-        item.options.forEach(opt => parts.push(`${opt.groupName}: ${opt.valueName}`));
+    if (item.options && item.options.length > 0) {
+        const optionStr = item.options.map(opt => `${opt.groupName}: ${opt.valueName}`).join(", ");
+        parts.push(optionStr);
     }
-    if (item.toppings?.length) {
-        // Updated logic to show topping quantity
-        const toppingNames = item.toppings.map(t => `${t.name} x${t.quantity}`).join(", ");
-        parts.push(`Toppings: ${toppingNames}`);
+    if (item.toppings && item.toppings.length > 0) {
+        const toppingCounts: Record<string, number> = {};
+        item.toppings.forEach(t => {
+            const qty = (t as any).quantity || 1;
+            toppingCounts[t.name] = (toppingCounts[t.name] || 0) + qty;
+        });
+        const toppingStr = Object.entries(toppingCounts).map(([name, count]) => `${name} x${count}`).join(", ");
+        parts.push(`(Topping(s): ${toppingStr})`);
     }
     return parts.join(" | ");
 };
 
+
 // ==========================================
-// 4. MAIN PAGE COMPONENT
+// 3. MAIN PAGE COMPONENT
 // ==========================================
 
 export default function CheckoutPage() {
     const router = useRouter();
-    const [cart, setCart] = useState<CartResponse | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isUpdating, setIsUpdating] = useState<number | null>(null); // Stores ID of item being updated
 
-    // Payment & Shipping State
-    const [selectedAddress, setSelectedAddress] = useState<UserAddress>(MOCK_ADDRESSES[0]);
+    const { user } = useAuthContext();
+
+    const {
+        cart,
+        isLoading,
+        isUpdating,
+        updateQuantity,
+        removeItem,
+        refreshCart,
+        clearCart // ✅ Import thêm clearCart
+    } = useCart();
+
+    const [updatingItemId, setUpdatingItemId] = useState<number | null>(null);
+    const [isProcessing, setIsProcessing] = useState(false); // ✅ State loading khi thanh toán
+
+    const [selectedAddress, setSelectedAddress] = useState<AddressResponse | null>(null);
     const [selectedVoucher, setSelectedVoucher] = useState<Voucher | null>(null);
-
-    // Set shipping fee to 0 (Free Shipping)
     const [shippingFee] = useState(0);
 
-    // Modals State
+    const [note, setNote] = useState("");
+    const [paymentMethod, setPaymentMethod] = useState("vnpay"); // ✅ State phương thức thanh toán
+
     const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
     const [isVoucherModalOpen, setIsVoucherModalOpen] = useState(false);
 
-    // --- DATA FETCHING ---
-    const fetchCart = async () => {
-        try {
-            const data = await cartService.getCart();
-            setCart(data);
-        } catch (error) {
-            toast.error("Failed to load cart");
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
+    // REVALIDATE CART ON FOCUS
     useEffect(() => {
-        fetchCart();
-    }, []);
+        const onFocus = () => refreshCart();
+        window.addEventListener("focus", onFocus);
+        refreshCart();
+        return () => window.removeEventListener("focus", onFocus);
+    }, [refreshCart]);
 
-    // --- HANDLERS ---
-    const handleQuantityChange = async (itemId: number, newQuantity: number) => {
-        if (newQuantity < 1) return;
-        setIsUpdating(itemId);
-        try {
-            await cartService.updateItem(itemId, { quantity: newQuantity });
-
-            // Optimistic update or refetch
-            if (cart) {
-                const updatedItems = cart.items.map(item => {
-                    if (item.id === itemId) {
-                        return {
-                            ...item,
-                            quantity: newQuantity,
-                            totalPrice: item.unitPrice * newQuantity
-                        };
-                    }
-                    return item;
-                });
-                // Recalculate total (Simple local calc for UX responsiveness)
-                const newTotal = updatedItems.reduce((acc, item) => acc + item.totalPrice, 0);
-                setCart({ ...cart, items: updatedItems, totalTemporaryPrice: newTotal });
+    // AUTO-SELECT DEFAULT ADDRESS
+    useEffect(() => {
+        const fetchDefaultAddress = async () => {
+            try {
+                const addrs = await addressService.getAll();
+                if (addrs.length > 0) {
+                    setSelectedAddress(addrs[0]);
+                }
+            } catch (error) {
+                console.error("Failed to fetch initial address", error);
             }
-        } catch (error) {
-            toast.error("Failed to update quantity");
-        } finally {
-            setIsUpdating(null);
+        };
+        if (user) {
+            fetchDefaultAddress();
         }
+    }, [user]);
+
+    // AUTO-REMOVE VOUCHER IF CONDITION NOT MET
+    useEffect(() => {
+        if (selectedVoucher && cart) {
+            if (cart.totalTemporaryPrice < selectedVoucher.minAmountOrder) {
+                setSelectedVoucher(null);
+                toast.warning(`Voucher removed. Order must be at least ${formatVND(selectedVoucher.minAmountOrder)}`);
+            }
+        }
+    }, [cart, selectedVoucher]);
+
+    // --- WRAPPERS ---
+    const handleUpdateQuantity = async (itemId: number, newQuantity: number) => {
+        setUpdatingItemId(itemId);
+        await updateQuantity(itemId, newQuantity);
+        setUpdatingItemId(null);
     };
 
-    const handleDeleteItem = async (itemId: number) => {
-        setIsUpdating(itemId);
-        try {
-            await cartService.removeItem(itemId);
-            // Refetch to ensure sync
-            await fetchCart();
-            toast.success("Item removed from cart");
-        } catch (error) {
-            toast.error("Failed to remove item");
-            setIsUpdating(null);
-        }
+    const handleRemoveItem = async (itemId: number) => {
+        setUpdatingItemId(itemId);
+        await removeItem(itemId);
+        setUpdatingItemId(null);
     };
 
-    const handleCheckout = () => {
+    // ✅ MAIN CHECKOUT HANDLER
+    const handleCheckout = async () => {
+        // 1. Validate
         if (!cart || cart.items.length === 0) {
             toast.error("Your cart is empty");
             return;
         }
-        toast.success("Order placed successfully via VNPAY!");
-        // router.push('/order-success');
+        if (!selectedAddress) {
+            toast.error("Please select a shipping address");
+            setIsAddressModalOpen(true);
+            return;
+        }
+
+        setIsProcessing(true);
+        try {
+
+            const shippingAddressStr = `Recipient: ${selectedAddress.recipientName}, Phone: ${selectedAddress.phoneNumber}, Address: ${selectedAddress.fullAddress}`;
+
+            const payload: CheckoutCartBody = {
+                customerPhone: user?.phone_number || undefined,
+                note: note || undefined,
+                shippingAddress: shippingAddressStr
+            };
+
+
+
+            // 3. Call API Create Order
+            console.log("Creating Order:", payload);
+            const orderRes = await cartService.checkout(payload);
+
+            if (orderRes) {
+                toast.success("Order created successfully!");
+
+                // 4. Clear Cart (Sau khi tạo đơn thành công)
+                await clearCart();
+
+                // 5. Process Payment
+                if (paymentMethod === "vnpay") {
+                    const finalAmount = Math.max(0, cart.totalTemporaryPrice - (selectedVoucher ? Math.round((cart.totalTemporaryPrice * selectedVoucher.discount_percentage) / 100) : 0));
+
+                    const paymentUrl = await orderService.payOnline({
+                        orderId: orderRes.id,
+                        amount: finalAmount,
+                        voucherCode: selectedVoucher?.code || undefined
+                    });
+
+                    // Redirect to Payment Gateway
+                    if (typeof paymentUrl === 'string' && paymentUrl.startsWith('http')) {
+                        window.location.href = paymentUrl;
+                    } else {
+                        // Fallback nếu không trả về link (hoặc lỗi)
+                        console.error("Invalid payment URL", paymentUrl);
+                        router.push(`/orders/${orderRes.id}`);
+                    }
+                } else {
+                    // COD hoặc phương thức khác
+                    router.push(`/orders/${orderRes.id}`);
+                }
+            }
+
+        } catch (error: any) {
+            console.error("Checkout Failed:", error);
+            toast.error(error?.response?.data?.message || "Failed to place order. Please try again.");
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
-    // --- LOADING STATE ---
     if (isLoading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
                 <Loader2 className="w-10 h-10 animate-spin text-emerald-600" />
+                <p className="text-gray-500 text-sm font-medium">Loading your cart...</p>
             </div>
         );
     }
 
-    // --- CALCULATIONS ---
-    const subtotal = cart?.totalTemporaryPrice || 0;
-    const discount = selectedVoucher ? selectedVoucher.discountAmount : 0;
-    const totalPayment = Math.max(0, subtotal + shippingFee - discount);
+    if (!cart || cart.items.length === 0) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+                <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 text-center max-w-md w-full">
+                    <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <ShoppingBag className="w-8 h-8 text-emerald-600" />
+                    </div>
+                    <h2 className="text-xl font-bold text-gray-900 mb-2">Your cart is empty</h2>
+                    <p className="text-gray-500 mb-6">Looks like you haven't added any items to your cart yet.</p>
+                    <Button
+                        onClick={() => router.push('/menu')}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 font-bold"
+                    >
+                        Go to Menu
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+
+    const subtotal = cart.totalTemporaryPrice;
+    const discountAmount = selectedVoucher
+        ? Math.round((subtotal * selectedVoucher.discount_percentage) / 100)
+        : 0;
+    const totalPayment = Math.max(0, subtotal + shippingFee - discountAmount);
 
     return (
         <div className="min-h-screen bg-gray-50 font-sans pb-12">
             <main className="container mx-auto px-4 py-8 max-w-6xl">
 
-                {/* --- HERO / HEADER SECTION (Synchronized Style) --- */}
+                {/* --- HEADER --- */}
                 <div className="relative bg-gradient-to-r from-emerald-50 to-white rounded-3xl p-6 mb-8 overflow-hidden border border-emerald-100 shadow-sm">
-                    {/* Decorative Blurs */}
                     <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-100/50 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none" />
 
                     <div className="relative z-10">
-                        {/* Breadcrumbs */}
                         <div className="flex items-center gap-2 text-sm text-emerald-600 font-medium mb-4">
                             <span className="cursor-pointer hover:underline flex items-center gap-1" onClick={() => router.push('/')}>
                                 <Home size={14} /> Home
                             </span>
                             <ChevronRight size={14} className="text-gray-400" />
+                            <span className="cursor-pointer hover:underline" onClick={() => router.push('/menu')}>
+                                Menu
+                            </span>
+                            <ChevronRight size={14} className="text-gray-400" />
                             <span className="text-gray-500">Checkout</span>
                         </div>
 
-                        {/* Title Row */}
                         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                             <div>
                                 <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
@@ -303,11 +280,9 @@ export default function CheckoutPage() {
                                     Complete your order and enjoy your meal.
                                 </p>
                             </div>
-
-                            {/* Stats Badge */}
                             <div className="bg-white px-4 py-2 rounded-full border border-emerald-100 shadow-sm flex items-center gap-2 text-sm text-emerald-700">
                                 <ShoppingBag size={16} />
-                                Total Items: <span className="font-bold">{cart?.totalQuantity || 0}</span>
+                                Total Items: <span className="font-bold">{cart.totalQuantity}</span>
                             </div>
                         </div>
                     </div>
@@ -315,53 +290,53 @@ export default function CheckoutPage() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-                    {/* === LEFT COLUMN: ORDER ITEMS === */}
+                    {/* === LEFT COLUMN: ORDER ITEMS & NOTE === */}
                     <div className="lg:col-span-2 space-y-6">
+                        {/* Order Items List */}
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                             <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
                                 <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                                     <ShoppingBag size={20} className="text-emerald-600" />
-                                    Order Items <span className="text-gray-400 font-normal">({cart?.totalQuantity} items)</span>
+                                    Order Items <span className="text-gray-400 font-normal">({cart.totalQuantity} items)</span>
                                 </h2>
                             </div>
 
                             <div className="divide-y divide-gray-100">
-                                {cart?.items.length === 0 ? (
-                                    <div className="p-12 text-center text-gray-500">
-                                        Your cart is currently empty.
-                                    </div>
-                                ) : (
-                                    cart?.items.map((item) => (
-                                        <div key={item.id} className="p-5 flex gap-4 transition-colors hover:bg-gray-50/30">
-                                            {/* Image */}
-                                            <div className="w-[75px] h-[75px] shrink-0 rounded-xl border border-gray-100 overflow-hidden bg-white">
-                                                <img
-                                                    src={item.productImage || "/placeholder.png"}
-                                                    alt={item.productName}
-                                                    className="w-full h-full object-cover"
-                                                />
-                                            </div>
+                                {cart.items.map((item) => {
+                                    const isItemUpdating = updatingItemId === item.id;
+                                    const productUrl = `/products/${item.productId}`;
 
-                                            {/* Content */}
+                                    return (
+                                        <div key={item.id} className="p-5 flex gap-4 transition-colors hover:bg-gray-50/30">
+                                            <Link href={productUrl} className="w-[75px] h-[75px] shrink-0 block">
+                                                <AppImage
+                                                    src={item.productImage || ""}
+                                                    alt={item.productName}
+                                                    className="w-full h-full rounded-xl border border-gray-100 cursor-pointer hover:opacity-80 transition-opacity"
+                                                    aspectRatio="aspect-square"
+                                                />
+                                            </Link>
+
                                             <div className="flex-1 flex flex-col justify-between">
-                                                {/* Top Row: Name + Delete */}
                                                 <div className="flex justify-between items-start">
-                                                    <h3 className="font-bold text-gray-900 line-clamp-1 mr-2">{item.productName}</h3>
+                                                    <Link href={productUrl} className="flex-1 mr-2">
+                                                        <h3 className="font-bold text-gray-900 line-clamp-1 hover:text-emerald-600 transition-colors">
+                                                            {item.productName}
+                                                        </h3>
+                                                    </Link>
                                                     <button
-                                                        onClick={() => handleDeleteItem(item.id)}
+                                                        onClick={() => handleRemoveItem(item.id)}
                                                         className="text-gray-400 hover:text-red-500 transition-colors p-1"
-                                                        disabled={isUpdating === item.id}
+                                                        disabled={isUpdating || isProcessing}
                                                     >
-                                                        {isUpdating === item.id ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                                                        {isItemUpdating ? <Loader2 size={18} className="animate-spin text-gray-400" /> : <Trash2 size={18} />}
                                                     </button>
                                                 </div>
 
-                                                {/* Middle Row: Description */}
                                                 <p className="text-xs text-gray-500 line-clamp-2 my-1">
                                                     {getProductDescription(item)}
                                                 </p>
 
-                                                {/* Bottom Row: Price + Quantity */}
                                                 <div className="flex justify-between items-end mt-1">
                                                     <div>
                                                         <span className="font-bold text-emerald-700">{formatVND(item.totalPrice)}</span>
@@ -370,22 +345,23 @@ export default function CheckoutPage() {
                                                         </span>
                                                     </div>
 
-                                                    {/* Quantity Control */}
                                                     <div className="flex items-center border border-gray-200 rounded-lg h-8 bg-white shadow-sm">
                                                         <button
-                                                            className="w-8 h-full flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-emerald-700 disabled:opacity-50"
-                                                            onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                                                            disabled={item.quantity <= 1 || isUpdating === item.id}
+                                                            className="w-8 h-full flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-emerald-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                            onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                                                            disabled={item.quantity <= 1 || isItemUpdating || isProcessing}
                                                         >
                                                             <Minus size={14} />
                                                         </button>
+
                                                         <div className="w-8 h-full flex items-center justify-center text-sm font-semibold text-gray-700 border-x border-gray-100">
                                                             {item.quantity}
                                                         </div>
+
                                                         <button
-                                                            className="w-8 h-full flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-emerald-700 disabled:opacity-50"
-                                                            onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                                                            disabled={isUpdating === item.id}
+                                                            className="w-8 h-full flex items-center justify-center text-gray-500 hover:bg-gray-100 hover:text-emerald-700 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                            onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                                                            disabled={isItemUpdating || isProcessing}
                                                         >
                                                             <Plus size={14} />
                                                         </button>
@@ -393,8 +369,27 @@ export default function CheckoutPage() {
                                                 </div>
                                             </div>
                                         </div>
-                                    ))
-                                )}
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* ORDER NOTE SECTION */}
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                            <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2 mb-4">
+                                <MessageSquarePlus size={20} className="text-emerald-600" />
+                                Order Note
+                            </h2>
+                            <textarea
+                                className="flex min-h-[80px] w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm ring-offset-white placeholder:text-gray-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+                                placeholder="Any special requests? (e.g. Less ice, allergy info...)"
+                                value={note}
+                                onChange={(e) => setNote(e.target.value)}
+                                maxLength={200}
+                                disabled={isProcessing}
+                            />
+                            <div className="text-right mt-1">
+                                <span className="text-xs text-gray-400">{note.length}/200</span>
                             </div>
                         </div>
                     </div>
@@ -402,7 +397,7 @@ export default function CheckoutPage() {
                     {/* === RIGHT COLUMN: PAYMENT & SUMMARY === */}
                     <div className="space-y-6">
 
-                        {/* 1. Order Summary (Top Priority) */}
+                        {/* Order Summary */}
                         <div className="bg-white rounded-2xl shadow-lg shadow-emerald-100/50 border border-gray-100 p-6">
                             <h3 className="font-bold text-lg text-gray-900 mb-4">Order Summary</h3>
                             <div className="space-y-3 text-sm">
@@ -416,12 +411,15 @@ export default function CheckoutPage() {
                                         {shippingFee === 0 ? "Free" : formatVND(shippingFee)}
                                     </span>
                                 </div>
-                                {discount > 0 && (
+
+                                {/* Discount Row */}
+                                {selectedVoucher && (
                                     <div className="flex justify-between text-emerald-600">
-                                        <span>Discount</span>
-                                        <span className="font-medium">-{formatVND(discount)}</span>
+                                        <span>Voucher ({selectedVoucher.code}) - {selectedVoucher.discount_percentage}%</span>
+                                        <span className="font-medium">-{formatVND(discountAmount)}</span>
                                     </div>
                                 )}
+
                                 <Separator className="my-2" />
                                 <div className="flex justify-between text-lg font-bold text-gray-900">
                                     <span>Total</span>
@@ -430,29 +428,34 @@ export default function CheckoutPage() {
                             </div>
                         </div>
 
-                        {/* 2. Shipping Address */}
+                        {/* Shipping Address Box */}
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
                                     <MapPin size={18} className="text-emerald-600" /> Shipping Address
                                 </h3>
-                                <Button variant="link" className="text-emerald-600 p-0 h-auto font-semibold" onClick={() => setIsAddressModalOpen(true)}>
-                                    Change
+                                <Button variant="link" className="text-emerald-600 p-0 h-auto font-semibold" onClick={() => setIsAddressModalOpen(true)} disabled={isProcessing}>
+                                    {selectedAddress ? "Change" : "Select Address"}
                                 </Button>
                             </div>
-                            <div className="space-y-1">
-                                <p className="font-semibold text-gray-900">{selectedAddress.name} <span className="font-normal text-gray-500">| {selectedAddress.phone}</span></p>
-                                <p className="text-sm text-gray-600 leading-relaxed">{selectedAddress.address}</p>
-                            </div>
+
+                            {selectedAddress ? (
+                                <div className="space-y-1">
+                                    <p className="font-semibold text-gray-900">{selectedAddress.recipientName} <span className="font-normal text-gray-500">| {selectedAddress.phoneNumber}</span></p>
+                                    <p className="text-sm text-gray-600 leading-relaxed">{selectedAddress.fullAddress}</p>
+                                </div>
+                            ) : (
+                                <div className="text-sm text-gray-400 italic">Please select a shipping address</div>
+                            )}
                         </div>
 
-                        {/* 3. Voucher */}
+                        {/* Voucher Box */}
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="font-bold text-gray-900 flex items-center gap-2">
                                     <Ticket size={18} className="text-emerald-600" /> Voucher
                                 </h3>
-                                <Button variant="link" className="text-emerald-600 p-0 h-auto font-semibold" onClick={() => setIsVoucherModalOpen(true)}>
+                                <Button variant="link" className="text-emerald-600 p-0 h-auto font-semibold" onClick={() => setIsVoucherModalOpen(true)} disabled={isProcessing}>
                                     Select Voucher
                                 </Button>
                             </div>
@@ -460,15 +463,18 @@ export default function CheckoutPage() {
                                 <div className="bg-emerald-50 border border-emerald-200 border-dashed rounded-lg p-3 flex justify-between items-center">
                                     <div>
                                         <p className="font-bold text-emerald-700 text-sm">{selectedVoucher.code}</p>
-                                        <p className="text-xs text-emerald-600">-{formatVND(selectedVoucher.discountAmount)}</p>
+                                        <p className="text-xs text-emerald-600">
+                                            -{selectedVoucher.discount_percentage}% (-{formatVND(discountAmount)})
+                                        </p>
                                     </div>
                                     <Button
                                         variant="ghost"
                                         size="icon"
                                         className="h-6 w-6 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800"
                                         onClick={() => setSelectedVoucher(null)}
+                                        disabled={isProcessing}
                                     >
-                                        <Trash2 size={14} />
+                                        <X size={16} />
                                     </Button>
                                 </div>
                             ) : (
@@ -476,18 +482,17 @@ export default function CheckoutPage() {
                             )}
                         </div>
 
-                        {/* 4. Payment Method */}
+                        {/* Payment Method */}
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
                             <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
                                 <CreditCard size={18} className="text-emerald-600" /> Payment Method
                             </h3>
-                            <RadioGroup defaultValue="vnpay" className="gap-3">
-                                <div className="flex items-center justify-between space-x-2 border border-emerald-200 bg-emerald-50/50 rounded-xl p-4 cursor-pointer ring-1 ring-emerald-500">
+                            <RadioGroup defaultValue="vnpay" className="gap-3" value={paymentMethod} onValueChange={setPaymentMethod}>
+                                <div className={`flex items-center justify-between space-x-2 border rounded-xl p-4 cursor-pointer transition-all ${paymentMethod === "vnpay" ? "border-emerald-500 bg-emerald-50/50 ring-1 ring-emerald-500" : "border-gray-200 bg-white hover:border-emerald-200"}`}>
                                     <div className="flex items-center gap-3">
                                         <RadioGroupItem value="vnpay" id="vnpay" className="text-emerald-600 border-emerald-600" />
                                         <Label htmlFor="vnpay" className="font-semibold text-gray-900 cursor-pointer">VNPAY E-Wallet</Label>
                                     </div>
-                                    {/* Mock VNPAY Icon */}
                                     <div className="h-6 w-16 bg-blue-600 rounded flex items-center justify-center text-[10px] text-white font-bold tracking-tighter">
                                         VNPAY
                                     </div>
@@ -495,12 +500,13 @@ export default function CheckoutPage() {
                             </RadioGroup>
                         </div>
 
-                        {/* 5. Pay Button (Bottom) */}
+                        {/* Pay Button */}
                         <Button
                             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-12 text-base shadow-lg shadow-emerald-200"
                             onClick={handleCheckout}
-                            disabled={isLoading || (cart?.items.length === 0)}
+                            disabled={isUpdating || !cart || cart.items.length === 0 || isProcessing}
                         >
+                            {isProcessing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                             Pay with VNPAY
                         </Button>
 
@@ -508,87 +514,25 @@ export default function CheckoutPage() {
                 </div>
             </main>
 
-            {/* === MODALS === */}
+            {/* === DIALOGS === */}
+            <AddressSelectionDialog
+                open={isAddressModalOpen}
+                onOpenChange={setIsAddressModalOpen}
+                selectedAddressId={selectedAddress?.id}
+                onSelect={(addr) => {
+                    setSelectedAddress(addr);
+                    setIsAddressModalOpen(false);
+                }}
+            />
 
-            {/* Address Modal */}
-            <Dialog open={isAddressModalOpen} onOpenChange={setIsAddressModalOpen}>
-                <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                        <DialogTitle>Select Shipping Address</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-3 py-2">
-                        {MOCK_ADDRESSES.map((addr) => (
-                            <div
-                                key={addr.id}
-                                className={`p-4 rounded-xl border cursor-pointer transition-all ${selectedAddress.id === addr.id
-                                    ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500"
-                                    : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                                    }`}
-                                onClick={() => setSelectedAddress(addr)}
-                            >
-                                <div className="flex justify-between">
-                                    <p className="font-bold text-gray-900">{addr.name}</p>
-                                    {addr.isDefault && <Badge variant="secondary" className="text-[10px]">Default</Badge>}
-                                </div>
-                                <p className="text-sm text-gray-600 mt-1">{addr.phone}</p>
-                                <p className="text-sm text-gray-500 mt-1">{addr.address}</p>
-                            </div>
-                        ))}
-                        <Button variant="outline" className="w-full border-dashed border-gray-300 text-gray-500 hover:border-emerald-500 hover:text-emerald-600">
-                            + Add New Address
-                        </Button>
-                    </div>
-                    <DialogFooter>
-                        <Button onClick={() => setIsAddressModalOpen(false)}>Confirm</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-
-            {/* Voucher Modal */}
-            <Dialog open={isVoucherModalOpen} onOpenChange={setIsVoucherModalOpen}>
-                <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                        <DialogTitle>Select Voucher</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-3 py-2 max-h-[400px] overflow-y-auto">
-                        {MOCK_VOUCHERS.map((voucher) => {
-                            const isApplicable = subtotal >= voucher.minOrderValue;
-                            return (
-                                <div
-                                    key={voucher.id}
-                                    className={`p-4 rounded-xl border flex justify-between items-center transition-all ${isApplicable
-                                        ? selectedVoucher?.id === voucher.id
-                                            ? "border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500 cursor-pointer"
-                                            : "border-gray-200 hover:border-emerald-200 cursor-pointer"
-                                        : "border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed"
-                                        }`}
-                                    onClick={() => {
-                                        if (isApplicable) setSelectedVoucher(voucher);
-                                    }}
-                                >
-                                    <div className="flex gap-3">
-                                        <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center text-emerald-600">
-                                            <Ticket size={24} />
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-gray-900">{voucher.code}</p>
-                                            <p className="text-sm text-gray-600">{voucher.description}</p>
-                                            <p className="text-xs text-gray-400 mt-1">Min. order: {formatVND(voucher.minOrderValue)}</p>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="font-bold text-emerald-600">-{formatVND(voucher.discountAmount)}</p>
-                                        {selectedVoucher?.id === voucher.id && <CheckCircle2 size={16} className="text-emerald-600 ml-auto mt-1" />}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                    <DialogFooter>
-                        <Button onClick={() => setIsVoucherModalOpen(false)}>Apply</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <VoucherSelectionDialog
+                open={isVoucherModalOpen}
+                onOpenChange={setIsVoucherModalOpen}
+                selectedVoucher={selectedVoucher}
+                subtotal={subtotal}
+                onSelect={(voucher) => setSelectedVoucher(voucher)}
+                customerPhone={user?.phone_number}
+            />
 
         </div>
     );

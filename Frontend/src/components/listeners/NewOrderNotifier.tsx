@@ -38,7 +38,7 @@ export function NewOrderNotifier() {
             notification.success({
                 message: `New Order Received!`,
                 description: `Order #${orderId} - (${itemsCount} items) - Total: ${total}`,
-                placement: 'topRight',
+                placement: 'top',
                 icon: <SoundOutlined style={{ color: '#52c41a' }} />,
                 duration: 10,
                 showProgress: true,

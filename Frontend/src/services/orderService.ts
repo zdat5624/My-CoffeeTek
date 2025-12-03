@@ -1,3 +1,4 @@
+import { OrderType } from "@/interfaces";
 import api from "@/lib/api"; // Using axios for API calls
 
 // Define ToppingItem interface
@@ -16,11 +17,13 @@ interface OrderItem {
 }
 
 // Define CreateOrder interface based on CreateOrderDto
-interface CreateOrder {
+export interface CreateOrder {
     order_details: OrderItem[];
     customerPhone?: string;
-    staffId: string;
+    staffId?: string | null;
     note?: string;
+    orderType?: OrderType;
+    shippingAddress?: string | null;
 }
 
 // Define UpdateOrder interface based on UpdateOrderDto (partial fields)
@@ -94,6 +97,11 @@ export const orderService = {
         return res.data;
     },
 
+    async userCancelOrder(id: number) {
+        const res = await api.patch(`/order/user/cancel/${id}`);
+        return res.data;
+    },
+
     async payByCash(data: Payment) {
         const res = await api.patch("/order/paid/cash", data);
         return res.data;
@@ -101,7 +109,7 @@ export const orderService = {
 
     async payOnline(data: Payment) {
         const res = await api.post("/order/paid/online", data);
-        return res.data;
+        return res.data as string; // Return payment URL
     },
 
     async updateItems(id: number, data: UpdateOrderItems) {

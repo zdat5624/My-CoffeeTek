@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -45,21 +46,12 @@ export class UserController {
   getUsers(@GetUser() user: client.User) {
     return user;
   }
+
   @Patch('update/:id')
-  @UseInterceptors(FileInterceptor('avatar', {
-    storage: memoryStorage(),
-    fileFilter: (req, file, cb) => {
-      if (!file.mimetype.startsWith('image/')) cb(new Error("only img"), false)
-      else cb(null, true);
-    },
-    limits: { fileSize: 1024 * 1024 * 2 }
-  }))
   async updateInfo(@Param('id', ParseIntPipe) id: number,
-    @UploadedFile() avatar: Express.Multer.File,
     @Body() updateDto: UserUpdateDTO): Promise<string> {
-    const key = `${uuid()}_${avatar.originalname}`
-    const url_avt = await this.b2Service.uploadFile(key, avatar.buffer, avatar.mimetype);
-    return await this.userService.updateInfo(id, updateDto, url_avt);
+
+    return await this.userService.updateInfo(id, updateDto);
   }
 
   // @Get('me')
@@ -123,5 +115,40 @@ export class UserController {
   // @UseGuards(AuthGuard('jwt'), RolesGuard)
   async getAllUsersForPos(@Query() query: GetAllDto) {
     return await this.userService.getAllUsersForPos(query);
+  }
+
+
+  @Patch('avatar')
+  @UseGuards(AuthGuard('jwt')) // Bắt buộc phải login
+  @UseInterceptors(FileInterceptor('avatar', {
+    storage: memoryStorage(),
+    fileFilter: (req, file, cb) => {
+      // Chỉ chấp nhận file ảnh
+      if (!file.mimetype.startsWith('image/')) cb(new Error("Only image files are allowed!"), false)
+      else cb(null, true);
+    },
+    limits: { fileSize: 1024 * 1024 * 5 } // Tăng giới hạn lên 5MB (tuỳ chọn)
+  }))
+  async updateAvatar(
+    @GetUser() user: client.User, // Lấy thông tin user từ JWT
+    @UploadedFile() avatar: Express.Multer.File
+  ) {
+    if (!avatar) {
+      throw new BadRequestException('Avatar file is required');
+    }
+
+    // 1. Tạo tên file unique và Upload lên B2
+    const key = `${uuid()}_${avatar.originalname}`;
+    const url_avt = await this.b2Service.uploadFile(key, avatar.buffer, avatar.mimetype);
+
+    // 2. Gọi Service để update URL vào DB
+    return await this.userService.updateAvatar(user.id, url_avt);
+  }
+
+
+  @Get('me/points')
+  @UseGuards(AuthGuard('jwt'))
+  async getMyPoints(@GetUser() user: client.User) {
+    return await this.userService.getMyPoints(user.phone_number);
   }
 }

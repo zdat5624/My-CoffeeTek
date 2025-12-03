@@ -42,7 +42,8 @@ export class NotificationController {
             query.page,
             query.size,
             query.type,
-            query.isRead
+            query.isRead,
+            query.excludeType
         );
     }
 

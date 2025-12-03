@@ -21,6 +21,11 @@ function slugify(name: string) {
         .replace(/^-+|-+$/g, "");
 }
 
+function getRandomItems<T>(arr: T[], count: number): T[] {
+    const shuffled = [...arr].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, count);
+}
+
 export async function seedProducts() {
     Logger.log('🪄 Seeding Products (Menu: Coffee, Tea & Food)...');
 
@@ -190,6 +195,12 @@ export async function seedProducts() {
             { size_id: sizeL.id, price: p.price + 10000 },
         ];
 
+        // 👉 Random 2–4 topping
+        const randomToppings = getRandomItems(
+            createdToppingIds,
+            Math.floor(Math.random() * 3) + 2
+        );
+
         await prisma.product.create({
             data: {
                 name: p.name,
@@ -201,7 +212,14 @@ export async function seedProducts() {
                 category: { connect: { id: catId } },
                 sizes: { create: sizesCreateData.map((s) => ({ size_id: s.size_id, price: s.price })) },
                 optionValues: { create: commonOptionIds.map((id) => ({ option_value_id: id })) },
-                toppings: { create: createdToppingIds.map((toppingId) => ({ topping_id: toppingId })) },
+
+                // 👉 Random topping
+                toppings: {
+                    create: randomToppings.map((id) => ({
+                        topping_id: id
+                    })),
+                },
+
                 images: { create: [{ image_name: fileName, sort_index: 1 }] },
             },
         });

@@ -10,6 +10,7 @@ import {
   Patch,
   ParseBoolPipe,
   ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import { ProductsService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -21,14 +22,30 @@ import { GetAllMenuProductsDto } from './dto/get-all-menu-products.dto';
 export class ProductsController {
   constructor(private readonly productsService: ProductsService) { }
 
+  @Get('best-selling-menu')
+  async getBestSellingMenu(
+    // Nhận vào limit, mặc định là 10 nếu không truyền
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number
+  ) {
+    // 1. Tự động tính toán khung thời gian 1 tháng gần nhất
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setMonth(startDate.getMonth() - 1); // Lùi về 1 tháng trước
+
+    // 2. Gọi Service
+    return this.productsService.getBestSellingMenuProducts(limit, startDate, endDate);
+  }
+
   @Post()
   create(@Body() dto: CreateProductDto) {
     return this.productsService.create(dto);
   }
+
   @Get("pos")
   findAllPos(@Query() query: GetAllProductsDto) {
     return this.productsService.findAllPos(query);
   }
+
   @Get("menu")
   findAllMenu(@Query() query: GetAllMenuProductsDto) {
     return this.productsService.findAllMenu(query);
@@ -66,4 +83,15 @@ export class ProductsController {
   ) {
     return this.productsService.toggleActiveStatus(id, isActive);
   }
+
+
+  @Get(':id/related')
+  findRelated(
+    @Param('id', ParseIntPipe) id: number,
+    @Query('limit', new ParseIntPipe({ optional: true })) limit?: number,
+  ) {
+    return this.productsService.findRelated(id, limit || 4);
+  }
+
+
 }

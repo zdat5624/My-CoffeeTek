@@ -10,7 +10,7 @@ import {
 } from "@/components/features/pos";
 import { OptionGroup, OptionValue, Product, ProductPosItem, Size, Topping, User, Voucher } from "@/interfaces";
 import { v4 as uuidv4 } from "uuid";
-import { orderService } from "@/services/orderService"; // Assuming the path to orderService
+import { orderService, CreateOrder } from "@/services/orderService"; // Assuming the path to orderService
 import { FullscreenLoader } from "@/components/commons";
 
 const { useBreakpoint } = Grid;
@@ -141,10 +141,10 @@ export default function PosPageTest() {
                 optionId: item.optionsSelected?.map(o => o.optionValue.id.toString()),
             }));
 
-            const createData = {
+            const createData: CreateOrder = {
                 order_details: orderDetails,
                 customerPhone: selectedCustomer?.phone_number, // Assuming User has phone property
-                staffId: "1", // Hardcoded, replace with actual staffId from auth
+                staffId: null, // Hardcoded, replace with actual staffId from auth
                 note: note
             };
 
@@ -177,9 +177,13 @@ export default function PosPageTest() {
             setSelectedVoucher(null);
             setNote("");
             setPayment({ cashReceived: 0, change: 0 });
-        } catch (error) {
-            message.error("Failed to create or pay order");
-            console.error(error);
+        } catch (err: any) {
+            if (err.response?.data?.message) {
+                message.error(err.response.data.message);
+            } else {
+                message.error("Failed to create or pay order");
+            }
+            console.error(err);
         } finally {
             setLoading(false);
         }

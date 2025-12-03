@@ -8,6 +8,7 @@ import { B2Service } from 'src/storage-file/b2.service';
 import { StorageFileModule } from 'src/storage-file/storage-file.module';
 import { InventoryModule } from 'src/inventory/inventory.module';
 import { EventsModule } from 'src/events/events.module';
+import { NotificationModule } from 'src/notification/notification.module';
 
 @Module({
   imports: [
@@ -26,8 +27,10 @@ import { EventsModule } from 'src/events/events.module';
     StorageFileModule,
     InventoryModule,
     EventsModule,
+    NotificationModule,
   ],
   controllers: [OrderController],
   providers: [OrderService],
+  exports: [OrderService]
 })
 export class OrderModule { }

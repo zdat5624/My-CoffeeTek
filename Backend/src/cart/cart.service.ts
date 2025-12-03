@@ -5,11 +5,16 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { AddToCartDto, UpdateCartItemDto } from './dto/cart.dto';
-import { Prisma } from '@prisma/client';
+import { OrderType, Prisma } from '@prisma/client';
+import { CreateOrderDto } from 'src/order/dto/order/create-order.dto';
+import { CheckoutCartDto } from './dto/checkout.dto';
+import { OrderService } from 'src/order/order.service';
+import { orderItemDTO } from 'src/order/dto/order/item-order.dto';
 
 @Injectable()
 export class CartService {
-    constructor(private prisma: PrismaService) { }
+    constructor(private prisma: PrismaService,
+        private orderService: OrderService) { }
 
     // =================================================================
     // 1. GET CART (WITH REALTIME PRICING)
@@ -38,7 +43,7 @@ export class CartService {
                 },
             },
         });
-        console.log(cart);
+        // console.log(cart);
         if (!cart) return null;
 
         // Tính toán giá Realtime cho từng item
@@ -232,6 +237,67 @@ export class CartService {
         });
     }
 
+    // =================================================================
+    // 6. CHECKOUT (CREATE ORDER FROM CART)
+    // =================================================================
+    async createOrderFromCart(userId: number, dto: CheckoutCartDto) {
+        // 1. Lấy giỏ hàng đầy đủ thông tin
+        const cart = await this.prisma.cart.findUnique({
+            where: { userId },
+            include: {
+                items: {
+                    include: {
+                        cartItemToppings: true,
+                        optionSelections: true,
+                    }
+                }
+            }
+        });
+
+        if (!cart || cart.items.length === 0) {
+            throw new BadRequestException('Cart is empty');
+        }
+
+        // 2. Map Cart Items sang CreateOrderDto (theo cấu trúc OrderService yêu cầu)
+        // Lưu ý: OrderService.create nhận vào string cho các ID (theo dto bạn gửi)
+        const orderDetails = cart.items.map(item => {
+            // Chuẩn bị toppingItems theo createToppingItemDTO
+            const toppingItems = item.cartItemToppings.map(t => ({
+                toppingId: t.toppingId.toString(),
+                quantity: t.quantity.toString()
+            }));
+
+            // Chuẩn bị optionId string[]
+            const optionId = item.optionSelections.map(o => o.id.toString());
+
+            return {
+                productId: item.productId.toString(),
+                quantity: item.quantity.toString(),
+                sizeId: item.sizeId ? item.sizeId.toString() : undefined, // Dùng undefined để khớp với optional
+                toppingItems: toppingItems.length > 0 ? toppingItems : undefined,
+                // ✅ FIX: Luôn truyền mảng optionId (string[]), không được trả về undefined vì DTO yêu cầu string[]
+                optionId: optionId
+            };
+        });
+
+        const createOrderDto: CreateOrderDto = {
+            order_details: orderDetails,
+            customerPhone: dto.customerPhone || undefined,
+            note: dto.note,
+            shippingAddress: dto.shippingAddress,
+            orderType: OrderType.ONLINE,
+        };
+
+        // 3. Gọi Order Service để tạo đơn (Tái sử dụng logic tính giá, check kho,...)
+        const newOrder = await this.orderService.create(createOrderDto);
+
+        // 4. Nếu tạo đơn thành công -> Xóa giỏ hàng
+        if (newOrder) {
+            await this.clearCart(userId);
+        }
+
+        return newOrder;
+    }
     // =================================================================
     // 🛡️ HELPER: CALCULATE PRICE (LOGIC ORDER SERVICE REPLICA)
     // =================================================================

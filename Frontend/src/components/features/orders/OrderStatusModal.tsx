@@ -2,7 +2,7 @@
 
 import { Modal, Button, message, Segmented, Tag } from "antd";
 import { orderService } from "@/services/orderService";
-import { Order, OrderStatus } from "@/interfaces";
+import { Order, OrderStatus, OrderType } from "@/interfaces";
 import { useState, useEffect } from "react";
 import { getStatusColor } from "@/utils";
 
@@ -18,7 +18,7 @@ export function OrderStatusModal({ open, order, onClose, onSuccess }: OrderStatu
 
     const [newStatus, setNewStatus] = useState<OrderStatus | null>(null);
 
-    // Xác định trạng thái có thể chuyển đổi dựa vào trạng thái hiện tại
+    // Xác định trạng thái có thể chuyển đổi dựa vào trạng thái hiện tại và loại đơn
     const availableStatuses: { label: string; value: OrderStatus }[] = [];
 
     switch (order.status) {
@@ -30,25 +30,39 @@ export function OrderStatusModal({ open, order, onClose, onSuccess }: OrderStatu
             break;
 
         case OrderStatus.PAID:
+            if (order.orderType === OrderType.ONLINE) {
+                availableStatuses.push(
+                    { label: "Mark as Shipping", value: OrderStatus.SHIPPING },
+                    { label: "Cancel", value: OrderStatus.CANCELED }
+                );
+            } else {
+                // POS
+                availableStatuses.push(
+                    { label: "Complete", value: OrderStatus.COMPLETED },
+                    { label: "Cancel", value: OrderStatus.CANCELED }
+                );
+            }
+            break;
+
+        case OrderStatus.SHIPPING:
+            // Chỉ áp dụng cho online orders
             availableStatuses.push(
-                { label: "Complete", value: OrderStatus.COMPLETED },
-                { label: "Cancel", value: OrderStatus.CANCELED }
+                { label: "Complete", value: OrderStatus.COMPLETED }
             );
             break;
 
         case OrderStatus.COMPLETED:
-            // ✅ Cho phép chuyển từ Completed sang Canceled
             availableStatuses.push(
                 { label: "Cancel", value: OrderStatus.CANCELED }
             );
             break;
 
         case OrderStatus.CANCELED:
-            // ❌ Đơn đã hủy thì không thể thay đổi
+            // ❌ Không cho phép chuyển đổi
             break;
     }
 
-    // ✅ Reset state khi modal mở hoặc order thay đổi
+    // Reset state khi modal mở hoặc order thay đổi
     useEffect(() => {
         if (open) {
             if (availableStatuses.length > 0) {
@@ -60,7 +74,7 @@ export function OrderStatusModal({ open, order, onClose, onSuccess }: OrderStatu
             setNewStatus(null);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open, order?.status]);
+    }, [open, order?.status, order?.orderType]);
 
     const handleUpdateStatus = async () => {
         if (!newStatus) {
@@ -101,7 +115,6 @@ export function OrderStatusModal({ open, order, onClose, onSuccess }: OrderStatu
         >
             <p>
                 Current Status: <Tag color={getStatusColor(order.status)}>{order.status.toUpperCase()}</Tag>
-
             </p>
 
             {availableStatuses.length > 0 ? (

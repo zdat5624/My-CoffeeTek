@@ -49,7 +49,8 @@ export class MaterialRemainService {
           importDate: {
             gte: date, // Lớn hơn hoặc bằng 00:00:00 ngày hiện tại
             lt: nextDate                       // Nhỏ hơn 00:00:00 ngày tiếp theo
-          }
+          },
+          isRecorded: false
         },
         orderBy: { importDate: 'desc' } // Lấy bản ghi mới nhất nếu có nhiều lần nhập trong ngày
       });
@@ -62,7 +63,8 @@ export class MaterialRemainService {
             adjustedAt: {
               gte: date,
               lt: nextDate
-            }
+            },
+            isRecorded: false,
           }
         })
         .then(e => e.reduce((sum, i) => sum + i.consume, 0));
@@ -75,7 +77,8 @@ export class MaterialRemainService {
             date: {
               gte: date,
               lt: nextDate
-            }
+            },
+            isRecorded: false
           }
         })
         .then(e => e.reduce((sum, i) => sum + i.quantity, 0));
@@ -143,8 +146,49 @@ export class MaterialRemainService {
       })
     }
 
-    // Đã bỏ qua sửa lỗi forEach/async để tập trung vào vấn đề ngày tháng.
-    return createMaterialRemainDto;
+    const date = new Date(createMaterialRemainDto.date);
+    date.setUTCHours(0, 0, 0, 0);
+
+    const nextDate = new Date(date);
+    nextDate.setUTCDate(nextDate.getUTCDate() + 1);
+
+    // 2) Cập nhật tất cả isRecorded = true cho MATERIAL IMPORT
+    await this.prisma.materialImportation.updateMany({
+      where: {
+        // importDate: {
+        //   gte: date,
+        //   lt: nextDate
+        // },
+        isRecorded: false
+      },
+      data: { isRecorded: true }
+    });
+
+    // 3) Cập nhật isRecorded cho InventoryAdjustment (Consume)
+    await this.prisma.inventoryAdjustment.updateMany({
+      where: {
+        // adjustedAt: {
+        //   gte: date,
+        //   lt: nextDate
+        // },
+        isRecorded: false
+      },
+      data: { isRecorded: true }
+    });
+
+    // 4) Cập nhật isRecorded cho watseLog (Loss)
+    await this.prisma.watseLog.updateMany({
+      where: {
+        // date: {
+        //   gte: date,
+        //   lt: nextDate
+        // },
+        isRecorded: false
+      },
+      data: { isRecorded: true }
+    });
+
+    return { message: "Created remain & updated all records!" };
   }
 
   async findAll() {

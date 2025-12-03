@@ -9,5 +9,6 @@ import { EventsModule } from 'src/events/events.module';
     imports: [PrismaModule, EventsModule],
     controllers: [NotificationController],
     providers: [NotificationService],
+    exports: [NotificationService],
 })
 export class NotificationModule { }

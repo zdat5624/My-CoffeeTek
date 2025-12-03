@@ -48,7 +48,7 @@ export class CategoriesService {
         const { page, size, search, orderBy = 'id', orderDirection = 'asc', isParentCategory } = query;
         const where: Prisma.CategoryWhereInput = {};
 
-        console.log(">>> isParentCategory: ", isParentCategory)
+        // console.log(">>> isParentCategory: ", isParentCategory)
 
         if (search) {
             where.name = {

@@ -31,6 +31,9 @@ import { B2Service } from 'src/storage-file/b2.service';
 import { InventoryService } from 'src/inventory/inventory.service';
 import { EventsGateway } from 'src/events/events.gateway';
 import { randomUUID } from 'crypto';
+import { NotificationService } from 'src/notification/notification.service';
+import { Role } from 'src/common/enums/role.enum';
+import { NotificationType } from 'src/common/enums/notificationType.enum';
 
 @Injectable()
 export class OrderService {
@@ -41,6 +44,7 @@ export class OrderService {
     private readonly b2Service: B2Service,
     private readonly inventoryService: InventoryService,
     private readonly eventsGateway: EventsGateway,
+    private readonly notificationService: NotificationService,
   ) { }
 
   async getInvoice(orderId: number) {
@@ -434,6 +438,7 @@ export class OrderService {
         final_price,
         note: createOrderDto.note,
         staffId: createOrderDto.staffId ? parseInt(createOrderDto.staffId) : null,
+        shippingAddress: createOrderDto.shippingAddress ? createOrderDto.shippingAddress : null,
         order_details: {
           create: orderDetailsData
         }
@@ -446,11 +451,33 @@ export class OrderService {
             ToppingOrderDetail: { include: { topping: true } },
           },
         },
+        Customer: true,
       },
     });
 
     await this.broadcastNewOrder(newOrder);
     await this.broadcastProcessOrderCount();
+
+
+    this.notificationService.sendToRoles(
+      ['owner', Role.BAKER, Role.BARISTA, Role.CASHIER, Role.MANAGER, Role.STAFF, Role.STOCKTAKER],
+      'New Order Received',
+      `Order #${newOrder.id} has been created. Total: ${newOrder.final_price.toLocaleString()}`,
+      NotificationType.ORDER_TASK,
+      { orderId: newOrder.id }
+    ).catch(err => console.error("Failed to send notification:", err));
+
+    if (newOrder.Customer) {
+      this.notificationService.create({
+        userId: newOrder.Customer.id,
+        title: 'Order Created 🎉',
+        message: `Your order #${newOrder.id} has been placed successfully.`,
+        type: NotificationType.ORDER,
+
+      }).catch(err => console.error("Failed to notify customer:", err));
+    }
+
+
     return newOrder;
   }
 
@@ -775,88 +802,177 @@ export class OrderService {
     );
   }
 
-  async updateStatus(dto: UpdateOrderStatusDTO, paymentDetailId?: number) {
+  // async updateStatus(dto: UpdateOrderStatusDTO, paymentDetailId?: number, staffId?: number) {
+  //   const order = await this.prisma.order.update({
+  //     where: {
+  //       id: dto.orderId,
+  //     },
+  //     data: {
+  //       status: dto.status,
+  //       paymentDetailId: paymentDetailId,
+  //     },
+  //   });
+
+  //   //create invoice when user paid sucessfully
+  //   if (dto.status == OrderStatus.PAID) {
+  //     const items = await this.prisma.orderDetail.findMany({
+  //       where: {
+  //         order_id: order.id,
+  //       },
+  //     });
+  //     const { key, pdfBuffer } = await this.invoiceService.createInvoice(
+  //       order,
+  //       items,
+  //     );
+
+  //     // store this pdf to private bucket
+  //     await this.b2Service.uploadFile(
+  //       key,
+  //       pdfBuffer,
+  //       'application/pdf',
+  //       process.env.B2_PRIVATE_BUCKET,
+  //     );
+
+  //     // store invoice url into db
+  //     await this.prisma.order.update({
+  //       where: {
+  //         id: dto.orderId,
+  //       },
+  //       data: {
+  //         invoiceUrl: key,
+  //       },
+  //     });
+  //   }
+  //   //adjust inventory  when order is completed
+  //   if (dto.status == OrderStatus.COMPLETED) {
+  //     const orderDetails = await this.prisma.orderDetail.findMany({
+  //       where: {
+  //         order_id: order.id,
+  //       },
+  //     });
+  //     for (const detail of orderDetails) {
+  //       try {
+  //         const inventory_change =
+  //           await this.inventoryService.adjustInventoryByOrderDetail(
+  //             detail.product_id,
+  //             detail.quantity,
+  //             order.id,
+  //             detail.size_id ?? undefined,
+  //           );
+  //         Logger.log(`Inventory adjusted: ${JSON.stringify(inventory_change)}`);
+  //       } catch (error: BadRequestException | NotFoundException | Error | any) {
+  //         Logger.error(
+  //           `Failed to adjust inventory for order detail id ${detail.id}: ${error.message}`,
+  //         );
+  //         return error;
+  //       }
+  //     }
+
+  //     // accumalate point
+  //     if (order.customerPhone) {
+  //       let additional_point = order.final_price / 1000;
+  //       await this.prisma.customerPoint.update({
+  //         where: {
+  //           customerPhone: order.customerPhone,
+  //         },
+  //         data: {
+  //           points: {
+  //             increment: additional_point,
+  //           },
+  //         },
+  //       });
+  //     }
+  //   }
+
+  //   await this.broadcastProcessOrderCount();
+
+  //   return order;
+  // }
+
+  async updateStatus(dto: UpdateOrderStatusDTO, paymentDetailId?: number, staffId?: number) {
+    // 1. Update status & Fetch Customer ID immediately
     const order = await this.prisma.order.update({
-      where: {
-        id: dto.orderId,
-      },
+      where: { id: dto.orderId },
       data: {
         status: dto.status,
         paymentDetailId: paymentDetailId,
+        staffId: staffId ?? undefined,
       },
+      include: {
+        Customer: { select: { id: true } }
+      }
     });
 
-    //create invoice when user paid sucessfully
+    // --- [NEW] Notify the Customer (User-Friendly Version) ---
+    if (order.Customer && order.Customer.id) {
+      // 💡 Tạo map message thân thiện cho từng trạng thái
+      const friendlyMessages: Record<string, string> = {
+        PENDING: `We've received your order #${order.id}. Getting things ready! 🕒`,
+
+        // Sửa: Kitchen -> Barista, Smells great (chung chung) -> Brewing/Mixing
+        PREPARING: `Our baristas are brewing your order #${order.id}. Aroma incoming! ☕✨`,
+
+        PAID: `Payment received for order #${order.id}. Thank you! 💳`,
+
+        SHIPPING: `Your drinks are on the way! Order #${order.id} is coming. 🛵💨`,
+
+        // Sửa: Meal -> Drink, Enjoy -> Sip & Relax
+        COMPLETED: `Order #${order.id} is ready. Time to sip and relax! 🥤🍃`,
+
+        CANCELLED: `Order #${order.id} has been cancelled. Let us know if we can help. 😔`,
+      };
+
+      // Chọn message dựa trên status, nếu không có thì dùng câu mặc định
+      const userMessage = friendlyMessages[dto.status] || `Update: Your order #${order.id} is now ${dto.status}.`;
+
+      this.notificationService.create({
+        userId: order.Customer.id,
+        title: 'Order Update 🔔', // Thêm icon cho sinh động
+        message: userMessage,
+        type: NotificationType.ORDER,
+      }).catch(err => console.error("Failed to notify customer:", err));
+    }
+    // -------------------------------------------
+
+    // 2. Handle successful payment
     if (dto.status == OrderStatus.PAID) {
-      const items = await this.prisma.orderDetail.findMany({
-        where: {
-          order_id: order.id,
-        },
-      });
-      const { key, pdfBuffer } = await this.invoiceService.createInvoice(
-        order,
-        items,
-      );
+      const items = await this.prisma.orderDetail.findMany({ where: { order_id: order.id } });
+      const { key, pdfBuffer } = await this.invoiceService.createInvoice(order, items);
 
-      // store this pdf to private bucket
-      await this.b2Service.uploadFile(
-        key,
-        pdfBuffer,
-        'application/pdf',
-        process.env.B2_PRIVATE_BUCKET,
-      );
+      await this.b2Service.uploadFile(key, pdfBuffer, 'application/pdf', process.env.B2_PRIVATE_BUCKET);
 
-      // store invoice url into db
       await this.prisma.order.update({
-        where: {
-          id: dto.orderId,
-        },
-        data: {
-          invoiceUrl: key,
-        },
+        where: { id: dto.orderId },
+        data: { invoiceUrl: key },
       });
     }
-    //adjust inventory  when order is completed
+
+    // 3. Handle completed order
     if (dto.status == OrderStatus.COMPLETED) {
-      const orderDetails = await this.prisma.orderDetail.findMany({
-        where: {
-          order_id: order.id,
-        },
-      });
+      const orderDetails = await this.prisma.orderDetail.findMany({ where: { order_id: order.id } });
+
       for (const detail of orderDetails) {
         try {
-          const inventory_change =
-            await this.inventoryService.adjustInventoryByOrderDetail(
-              detail.product_id,
-              detail.quantity,
-              order.id,
-              detail.size_id ?? undefined,
-            );
-          Logger.log(`Inventory adjusted: ${JSON.stringify(inventory_change)}`);
-        } catch (error: BadRequestException | NotFoundException | Error | any) {
-          Logger.error(
-            `Failed to adjust inventory for order detail id ${detail.id}: ${error.message}`,
+          const inventory_change = await this.inventoryService.adjustInventoryByOrderDetail(
+            detail.product_id, detail.quantity, order.id, detail.size_id ?? undefined,
           );
+          Logger.log(`Inventory adjusted: ${JSON.stringify(inventory_change)}`);
+        } catch (error: any) { // Rút gọn type catch
+          Logger.error(`Failed to adjust inventory: ${error.message}`);
           return error;
         }
       }
 
-      // accumalate point
       if (order.customerPhone) {
-        let additional_point = order.final_price / 1000;
+        let additional_point = Math.floor(order.final_price / 1000);
         await this.prisma.customerPoint.update({
-          where: {
-            customerPhone: order.customerPhone,
-          },
-          data: {
-            points: {
-              increment: additional_point,
-            },
-          },
+          where: { customerPhone: order.customerPhone },
+          data: { points: { increment: additional_point } },
         });
       }
     }
 
+    // 4. Broadcast
     await this.broadcastProcessOrderCount();
 
     return order;

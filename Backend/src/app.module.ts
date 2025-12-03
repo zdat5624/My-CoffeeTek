@@ -28,6 +28,8 @@ import { MaterialLossModule } from './material-loss/material-loss.module';
 import { MaterialRemainModule } from './material-remain/material-remain.module';
 import { NotificationModule } from './notification/notification.module';
 import { CartModule } from './cart/cart.module';
+import { AddressModule } from './address/address.module';
+import { ReviewsModule } from './reviews/reviews.module';
 
 
 @Module({
@@ -66,6 +68,8 @@ import { CartModule } from './cart/cart.module';
     NotificationModule,
     EventsModule,
     CartModule,
+    AddressModule,
+    ReviewsModule,
   ],
 })
 export class AppModule { }

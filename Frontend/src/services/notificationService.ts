@@ -10,7 +10,7 @@ export interface UnreadCountResponse {
 
 export const notificationService = {
     // 1. Lấy danh sách thông báo (có phân trang & lọc)
-    async getAll(page: number = 1, size: number = 10, type?: string, isRead?: boolean) {
+    async getAll(page: number = 1, size: number = 10, type?: string, isRead?: boolean, excludeType?: string) {
         // Xây dựng query params
         const params = new URLSearchParams({
             page: page.toString(),
@@ -22,6 +22,10 @@ export const notificationService = {
         }
         if (isRead !== null && isRead !== undefined) {
             params.append('isRead', isRead.toString());
+        }
+
+        if (excludeType) {
+            params.append('excludeType', excludeType);
         }
 
 

@@ -20,12 +20,13 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { AppImageSize } from "@/components/commons";
-import { formatPrice, getStatusColor } from "@/utils";
+import { formatPrice, getOrderTypeColor, getStatusColor } from "@/utils";
 import {
     Order,
     OrderDetail,
     ToppingOrderDetail,
     OrderStatus,
+    OrderType,
 } from "@/interfaces";
 import { orderService } from "@/services/orderService";
 import { Grid } from "antd";
@@ -75,23 +76,35 @@ export function OrderDetailComponent({
 
     const handleConfirm = async () => {
         if (!order) return;
-        const newStatus =
-            order.status === OrderStatus.PENDING
-                ? OrderStatus.PAID
-                : OrderStatus.COMPLETED;
+
+        let newStatus: OrderStatus;
+
+        if (order.orderType === OrderType.ONLINE) {
+            // ONLINE flow
+            if (order.status === OrderStatus.PENDING) newStatus = OrderStatus.PAID;
+            else if (order.status === OrderStatus.PAID) newStatus = OrderStatus.SHIPPING;
+            else if (order.status === OrderStatus.SHIPPING) newStatus = OrderStatus.COMPLETED;
+            else return;
+        } else {
+            // POS flow
+            if (order.status === OrderStatus.PENDING) newStatus = OrderStatus.PAID;
+            else if (order.status === OrderStatus.PAID) newStatus = OrderStatus.COMPLETED;
+            else return;
+        }
 
         try {
             await orderService.updateStatus({
                 orderId: order.id,
                 status: newStatus,
             });
-            message.success(`Order updated to ${newStatus.toUpperCase()} successfully`);
+            message.success(`Order moved to ${newStatus.toUpperCase()}`);
             fetchOrder();
             onStatusUpdate?.();
         } catch (err) {
-            message.error("Error updating order status");
+            message.error("Failed to update order status");
         }
     };
+
 
     const handleCancel = async () => {
         if (!order) return;
@@ -139,15 +152,25 @@ export function OrderDetailComponent({
 
     const canConfirm =
         order.status === OrderStatus.PENDING ||
-        order.status === OrderStatus.PAID;
+        order.status === OrderStatus.PAID ||
+        (order.orderType === OrderType.ONLINE && order.status === OrderStatus.SHIPPING);
+
+
     const canCancel =
         order.status === OrderStatus.PENDING ||
         order.status === OrderStatus.PAID;
 
-    const confirmText =
-        order.status === OrderStatus.PENDING
-            ? "Confirm Paid"
-            : "Confirm Complete";
+    let confirmText = "Confirm";
+
+    if (order.orderType === OrderType.ONLINE) {
+        if (order.status === OrderStatus.PENDING) confirmText = "Confirm Paid";
+        else if (order.status === OrderStatus.PAID) confirmText = "Confirm Shipping";
+        else if (order.status === OrderStatus.SHIPPING) confirmText = "Confirm Complete";
+    } else {
+        if (order.status === OrderStatus.PENDING) confirmText = "Confirm Paid";
+        else if (order.status === OrderStatus.PAID) confirmText = "Confirm Complete";
+    }
+
 
     return (
         <div>
@@ -184,6 +207,11 @@ export function OrderDetailComponent({
                         {order.status.toUpperCase()}
                     </Tag>
                 </Descriptions.Item>
+                <Descriptions.Item label="Order Type">
+                    <Tag color={getOrderTypeColor(order.orderType)}>
+                        {order.orderType.toUpperCase()}
+                    </Tag>
+                </Descriptions.Item>
                 <Descriptions.Item label="Customer">
                     {order.Customer
                         ? `${order.Customer.first_name ?? ""} ${order.Customer.last_name ?? ""} (${order.customerPhone ?? "N/A"})`
@@ -200,6 +228,12 @@ export function OrderDetailComponent({
                 <Descriptions.Item label="Final Price">
                     {formatPrice(order.final_price, { includeSymbol: true })}
                 </Descriptions.Item>
+                {order.orderType === OrderType.ONLINE && (
+                    <Descriptions.Item label="Shipping Address">
+                        {order.shippingAddress || "N/A"}
+                    </Descriptions.Item>
+                )}
+
                 <Descriptions.Item label="Note">
                     {order.note || "N/A"}
                 </Descriptions.Item>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation'; // ✅ Import thêm
 import {
   ChevronLeft,
   ChevronRight,
@@ -26,19 +27,33 @@ import { ProductCard } from '@/components/features/menu/ProductCard';
 import { ProductDetailModal } from '@/components/features/menu/ProductDetailModal';
 
 export default function MenuPage() {
+  // ✅ Hook Next.js Navigation
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
   // --- 1. State Management ---
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<MenuProduct[]>([]);
 
-  // State Filter & Pagination
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  // State Filter & Pagination (Cập nhật logic lấy giá trị ban đầu từ URL)
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
 
-  // ✅ Update: State này giờ sẽ được dùng để call API
-  const [priceRange, setPriceRange] = useState({ min: 0, max: 200000 });
+  const [selectedCategory, setSelectedCategory] = useState<number | null>(
+    searchParams.get('category') ? Number(searchParams.get('category')) : null
+  );
 
-  const [sortOption, setSortOption] = useState('newest');
-  const [currentPage, setCurrentPage] = useState(1);
+  // ✅ Update: Lấy giá trị từ URL hoặc dùng default
+  const [priceRange, setPriceRange] = useState({
+    min: searchParams.get('minPrice') ? Number(searchParams.get('minPrice')) : 0,
+    max: searchParams.get('maxPrice') ? Number(searchParams.get('maxPrice')) : 200000
+  });
+
+  const [sortOption, setSortOption] = useState(searchParams.get('sort') || 'newest');
+
+  const [currentPage, setCurrentPage] = useState(
+    searchParams.get('page') ? Number(searchParams.get('page')) : 1
+  );
+
   const itemsPerPage = 15;
 
   // State Meta & Loading
@@ -53,7 +68,24 @@ export default function MenuPage() {
 
   // UI State
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<MenuProduct | null>(null);
+
+  // ✅ EFFECT MỚI: Sync State to URL (Chạy khi filter thay đổi)
+  useEffect(() => {
+    const params = new URLSearchParams();
+
+    if (searchQuery) params.set('search', searchQuery);
+    if (selectedCategory) params.set('category', selectedCategory.toString());
+    if (sortOption && sortOption !== 'newest') params.set('sort', sortOption);
+    if (currentPage > 1) params.set('page', currentPage.toString());
+
+    // Chỉ lưu price nếu khác default để URL gọn đẹp
+    if (priceRange.min > 0) params.set('minPrice', priceRange.min.toString());
+    if (priceRange.max < 200000) params.set('maxPrice', priceRange.max.toString());
+
+    // replace giúp update URL mà không reload page, scroll: false để không bị nhảy trang
+    router.replace(`?${params.toString()}`, { scroll: false });
+  }, [searchQuery, selectedCategory, sortOption, currentPage, priceRange, router]);
+
 
   // --- 2. Data Fetching (Categories) ---
   useEffect(() => {
@@ -141,7 +173,7 @@ export default function MenuPage() {
     // Debounce call API (chờ 300ms sau khi người dùng dừng thao tác)
     const timeoutId = setTimeout(() => {
       fetchProducts();
-    }, 300);
+    }, 400);
 
     return () => clearTimeout(timeoutId);
 
@@ -150,17 +182,18 @@ export default function MenuPage() {
 
   // Reset page when filter changes
   useEffect(() => {
-    setCurrentPage(1);
-    // ✅ Update: Reset về trang 1 khi kéo giá
+    // Chỉ reset page về 1 nếu page hiện tại đang > 1 (tránh loop vô tận khi load trang có page=1)
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+    }
+    // ✅ Update: Reset về trang 1 khi kéo giá, search, đổi category, sort
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, selectedCategory, sortOption, priceRange]);
+  // Lưu ý: Bỏ currentPage ra khỏi dep array của useEffect này để tránh reset page khi bấm chuyển trang
 
   return (
     <div className="min-h-screen flex flex-col font-sans bg-gray-50">
-      <ProductDetailModal
-        product={selectedProduct}
-        isOpen={!!selectedProduct}
-        onClose={() => setSelectedProduct(null)}
-      />
+
 
       <main className="flex-1 container mx-auto px-4 py-8">
         {/* Hero Section - Giữ nguyên */}
@@ -306,7 +339,6 @@ export default function MenuPage() {
                       <ProductCard
                         key={product.id}
                         product={product}
-                        onClick={setSelectedProduct}
                       />
                     ))}
                   </div>

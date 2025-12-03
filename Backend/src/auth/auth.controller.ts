@@ -6,6 +6,7 @@ import { GetUser } from './decorator';
 import * as client from '@prisma/client';
 import { Role } from './decorator/role.decorator';
 import { RolesGuard } from './strategy/role.strategy';
+import { AuthChangePasswordDto } from './dto/auth-change-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -15,19 +16,30 @@ export class AuthController {
         return this.authservice.login(dto);
     }
 
+    @Post('change-password')
+    @UseGuards(AuthGuard('jwt'))
+    changePassword(
+        @GetUser() user: client.User,
+        @Body() dto: AuthChangePasswordDto
+    ) {
+        return this.authservice.changePassword(user, dto);
+    }
+
     @Post('signup')
     singup(@Body() dto: authSignUpDto) {
         return this.authservice.signup(dto);
     }
-    @Post('change-password')
-    @UseGuards(AuthGuard('jwt'))
-    changePassword(@GetUser() user: client.User, @Body() dto: authChangePasswordDto) {
-        return this.authservice.changePassword(user, dto);
-    }
+    // @Post('change-password')
+    // @UseGuards(AuthGuard('jwt'))
+    // changePassword(@GetUser() user: client.User, @Body() dto: authChangePasswordDto) {
+    //     return this.authservice.changePassword(user, dto);
+    // }
+
     @Post('forget-password')
     forgetPassword(@Body() dto: authForgetPasswordDto) {
         return this.authservice.forgetPassword(dto);
     }
+
     @Post('reset-password')
     resetPassword(@Body() dto: authForgetPasswordDto) {
         return this.authservice.resetPassword(dto);

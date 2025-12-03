@@ -6,9 +6,8 @@ import { useEffect, useState } from "react";
 import Banner from "@/components/sections/Banner";
 import Explore from "@/components/sections/Explore";
 import OrderCoffee from "@/components/sections/OrderCoffee";
-import SellingCoffee from "@/components/sections/SellingCoffee";
 import InstantCoffee from "@/components/sections/InstantCoffee";
-import Testimonial from "@/components/sections/Testimonial";
+import HomeSections from "@/components/sections/HomeSections";
 
 export default function Home() {
   const searchParams = useSearchParams();
@@ -30,11 +29,12 @@ export default function Home() {
   return (
     <div className="relative">
       <Banner />
-      <Explore />
+      {/* <Explore /> */}
+
+      <HomeSections />
+
       <OrderCoffee />
-      <SellingCoffee />
-      <InstantCoffee />
-      {/* <Testimonial /> */}
+
     </div>
   );
 }

@@ -27,7 +27,7 @@ function getContentType(fileName: string): string {
 
 // === THƯ MỤC ẢNH ===
 //script run: npx ts-node scripts/upload-folder.ts
-const folderPath = "C:/Mydata/University/Nam4Hk1/My-CK-NodeJs/product-images/toppings"; // đổi đường dẫn tại đây
+const folderPath = "C:/Mydata/University/Nam4Hk1/My-CK-NodeJs/product-images/others"; // đổi đường dẫn tại đây
 
 async function uploadAll() {
     const bucket = process.env.B2_DEFAULT_BUCKET!;

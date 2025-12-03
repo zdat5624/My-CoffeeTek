@@ -13,11 +13,38 @@ export async function seedPromotions() {
         return prisma.promotion.findMany();
     }
 
-    // 2. GET PRODUCTS & SIZES
-    const products = await prisma.product.findMany({
+    // // 2. GET PRODUCTS & SIZES
+    // const products = await prisma.product.findMany({
+    //     where: { is_multi_size: true },
+    //     include: { sizes: true },
+    //     take: 20,
+    // });
+
+    // 1. Lấy TẤT CẢ id của các sản phẩm multi_size
+    const allProductIds = await prisma.product.findMany({
         where: { is_multi_size: true },
+        select: { id: true }, // Chỉ lấy ID để nhẹ gánh
+    });
+
+    // 2. Trộn ngẫu nhiên mảng (Fisher-Yates Shuffle hoặc sort random đơn giản)
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]]; // Hoán đổi vị trí
+        }
+        return array;
+    }
+
+    // Sử dụng:
+    const shuffled = shuffleArray([...allProductIds]);
+
+    // 3. Cắt lấy 20 cái đầu tiên
+    const selectedIds = shuffled.slice(0, 20).map(p => p.id);
+
+    // 4. Query lấy chi tiết
+    const products = await prisma.product.findMany({
+        where: { id: { in: selectedIds } },
         include: { sizes: true },
-        take: 20,
     });
 
     if (products.length === 0) {
@@ -126,18 +153,35 @@ export async function seedPromotions() {
     const targetProducts = products.slice(0, 15);
 
     for (const prod of targetProducts) {
-        for (const size of prod.sizes) {
-            let discountedPrice = size.price * 0.85;
+        if (prod.is_multi_size) {
+            // --- CASE A: PRODUCT NHIỀU SIZE ---
+            for (const size of prod.sizes) {
+                let discountedPrice = size.price * 0.85;
+                discountedPrice = Math.floor(discountedPrice / 1000) * 1000;
+
+                itemsData.push({
+                    productId: prod.id,
+                    promotionId: activePromoHeader.id,
+                    productSizeId: size.id, // OK vì product multi size
+                    new_price: discountedPrice,
+                });
+            }
+        } else {
+            // --- CASE B: PRODUCT CHỈ 1 SIZE ---
+            if (!prod.price) continue; // tránh lỗi null
+
+            let discountedPrice = prod.price * 0.85;
             discountedPrice = Math.floor(discountedPrice / 1000) * 1000;
 
             itemsData.push({
                 productId: prod.id,
                 promotionId: activePromoHeader.id,
-                productSizeId: size.size_id,
+                productSizeId: null,  // MUST BE NULL
                 new_price: discountedPrice,
             });
         }
     }
+
 
     await prisma.productPromotion.createMany({
         data: itemsData,

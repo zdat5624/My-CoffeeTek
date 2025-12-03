@@ -79,24 +79,26 @@ export async function seedUsers() {
     ];
 
     // 3.2: Sinh thêm 22 User ngẫu nhiên (Customer)
-    for (let i = 1; i <= 22; i++) {
-        // Tạo số điện thoại giả: 098 + 7 số (pad đầu 0)
-        const suffix = i.toString().padStart(5, '0');
+    for (let i = 1; i <= 300; i++) {
+        // Tạo 7 số cuối, pad cho đủ 7 số
+        const suffix = i.toString().padStart(7, '0');
+        const phone = `098${suffix}`; // 098 + 7 số = 10 số
 
         usersData.push({
             email: `user${i}@test.com`,
-            phone_number: `09876${suffix}`, // VD: 0987600001, 0987600002...
+            phone_number: phone,
             first_name: 'Customer',
             last_name: `Number ${i}`,
             role: 'CUSTOMER',
             detail: {
                 birthday: new Date('1999-01-01'),
-                sex: i % 2 === 0 ? 'Male' : 'Female', // Xen kẽ nam nữ
-                avatar_url: `https://i.pravatar.cc/150?u=${i}`, // Avatar ngẫu nhiên
+                sex: i % 2 === 0 ? 'Male' : 'Female',
+                avatar_url: `https://i.pravatar.cc/150?u=${i}`,
                 address: `Số ${i} Đường Demo, TP.HCM`,
             },
         });
     }
+
 
     // ==========================================================
     // 4. CREATE USERS

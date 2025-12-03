@@ -63,6 +63,10 @@ export const productService = {
         const res = await api.get("/products", { params });
         return res.data;
     },
+    async getBestSellingProduct(limit: number) {
+        const res = await api.get(`/products/best-selling-menu?limit=${limit}`);
+        return res.data as MenuProduct[];
+    },
 
     // Lấy chi tiết sản phẩm theo id
     async getById(id: number) {
@@ -94,6 +98,11 @@ export const productService = {
     },
     async getAllMenu(params?: GetAllProductsParams): Promise<MenuProductResponse> {
         const res = await api.get("/products/menu", { params });
+        return res.data;
+    },
+
+    async getRelated(id: number) {
+        const res = await api.get<MenuProduct[]>(`/products/${id}/related?limit=4`);
         return res.data;
     },
 };

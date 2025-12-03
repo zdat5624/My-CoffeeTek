@@ -37,6 +37,7 @@ model User {
   Notifications Notification[]
   addresses     UserAddress[]
   cart          Cart?
+  reviews       ProductReview[]
   @@map("users")
 }
 
@@ -133,7 +134,7 @@ model Product {
 
   cartItems          CartItem[]           // Sản phẩm nằm trong giỏ hàng nào
   cartToppings       CartItemTopping[]    @relation("ToppingCart") // Sản phẩm này được dùng làm topping trong giỏ nào
-
+  reviews            ProductReview[]
   @@map("products")
 }
 
@@ -200,7 +201,7 @@ model UserAddress {
   phoneNumber   String
 
   // Địa chỉ chi tiết
-  fullAddress   String   // Số nhà, tên đường
+  fullAddress   String
 
 
   // Đánh dấu địa chỉ mặc định
@@ -376,6 +377,7 @@ model watseLog {
   reason     String
   date       DateTime
   User       User?    @relation(fields: [employeeId], references: [id])
+  isRecorded  Boolean  @default(false) // Đánh dấu đã ghi nhận vào kho hay chưa
   employeeId Int?
 }
 
@@ -534,4 +536,23 @@ model CartItemTopping {
   topping     Product  @relation("ToppingCart", fields: [toppingId], references: [id], onDelete: Cascade)
 
   @@map("cart_item_toppings")
+}
+
+model ProductReview {
+  id        Int      @id @default(autoincrement())
+  rating    Int      // 1 đến 5 sao
+  comment   String?  // Nội dung đánh giá
+  isHidden Boolean  @default(false) // Ẩn đánh giá nếu vi phạm
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt // <--- Tự động cập nhật thời gian khi sửa đổi
+
+  // Người đánh giá
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Sản phẩm được đánh giá
+  productId Int
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_reviews")
 }

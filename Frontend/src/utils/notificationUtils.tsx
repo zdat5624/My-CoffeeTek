@@ -47,6 +47,7 @@ export const NOTIFICATION_TAB_ITEMS_CUSTOMER = [
     { key: 'all', label: 'All' },
     { key: NotificationType.ORDER, label: 'Order' },
     { key: NotificationType.PROMOTION, label: 'Promo' },
+    { key: NotificationType.ORDER_TASK, label: 'Order Task' },
     { key: NotificationType.SYSTEM, label: 'System' },
 ];
 
