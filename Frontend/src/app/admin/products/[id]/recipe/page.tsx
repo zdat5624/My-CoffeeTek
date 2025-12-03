@@ -111,8 +111,10 @@ export default function UpdateRecipePage() {
 
                     const recipeItems = Array.from(materialMap.values()).map((item) => {
                         const consumeMap = new Map(item.consume.map((c) => [c.sizeId, c.amount]));
-                        const completeConsume = sizes.map((size: Size) => ({
+                        // Bỏ ": Size" hoặc định nghĩa kiểu cho phép id null và không bắt buộc sort_index
+                        const completeConsume = sizes.map((size: { id: number | null }) => ({
                             sizeId: size.id,
+                            // TypeScript sẽ hiểu consumeMap.get nhận key là number | null
                             amount: consumeMap.get(size.id) ?? 0,
                         }));
                         return { ...item, consume: completeConsume };
