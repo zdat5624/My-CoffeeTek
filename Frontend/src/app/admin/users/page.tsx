@@ -9,6 +9,8 @@ import { useTableState } from "@/hooks/useTableState";
 import { UserTableActions, UserLockModal, UserDetailModal, UserRoleModal } from "@/components/features/users";
 import { Tag, Avatar, Typography, Badge } from "antd";
 import dayjs from "dayjs";
+import { PageHeader } from "@/components/layouts";
+import { UserOutlined } from "@ant-design/icons";
 
 const { Text } = Typography;
 
@@ -45,8 +47,7 @@ export default function UserPage() {
 
     return (
         <>
-            <h1>User Management</h1>
-
+            <PageHeader icon={<UserOutlined />} title="User Management" />
             <TableToolbar
                 search={tableState.searchName}
                 onSearchChange={(value: string) =>
@@ -75,9 +76,22 @@ export default function UserPage() {
                         align: "center",
                         render: (_, record) => {
                             const url = record.detail?.avatar_url;
+                            let displayUrl = `${baseUrl}/default.png`; // Mặc định
+
+                            if (url) {
+                                // LOGIC MỚI:
+                                // Nếu url bắt đầu bằng 'http' (http:// hoặc https://) -> Dùng nguyên gốc
+                                // Nếu không -> Ghép với baseUrl
+                                if (url.startsWith("http")) {
+                                    displayUrl = url;
+                                } else {
+                                    displayUrl = `${baseUrl}/${url}`;
+                                }
+                            }
+
                             return (
                                 <Avatar
-                                    src={url ? `${baseUrl}/${url}` : "/default-avatar.png"}
+                                    src={displayUrl}
                                     size={40}
                                 />
                             );

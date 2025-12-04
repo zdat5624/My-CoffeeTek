@@ -35,6 +35,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                 if (cachedUser) setUser(JSON.parse(cachedUser));
 
                 const res = await authService.getUserLoginInfo();
+
+                if (res.is_locked) {
+                    // Clear all auth data
+                    localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+                    localStorage.removeItem(STORAGE_KEYS.USER_INFO);
+
+                    // Reset state
+                    setUser(null);
+                    setIsAuthenticated(false);
+                    setLoading(false);
+
+                    // Force redirect to locked page
+                    window.location.href = "/locked";
+                    return; // Stop execution
+                }
+
                 setUser(res);
                 localStorage.setItem(STORAGE_KEYS.USER_INFO, JSON.stringify(res));
                 setIsAuthenticated(true);

@@ -8,6 +8,8 @@ import type { Topping, ToppingResponsePaging } from "@/interfaces";
 import { useTableState } from "@/hooks/useTableState";
 import { CreateToppingModal, ToppingDetailModal, EditToppingModal, DeleteToppingModal, DeleteManyToppingsModal } from "@/components/features/toppings";
 import { formatPrice } from "@/utils";
+import { PageHeader } from "@/components/layouts";
+import { HeartFilled } from "@ant-design/icons";
 
 
 export default function ToppingPage() {
@@ -59,8 +61,7 @@ export default function ToppingPage() {
 
     return (
         <>
-            <h1>Topping Management</h1>
-
+            <PageHeader icon={<HeartFilled />} title="Topping Management" />
 
 
             <TableToolbar
